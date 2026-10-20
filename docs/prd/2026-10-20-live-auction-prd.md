@@ -180,15 +180,18 @@ Prioritas memakai Must, Should, Could, dan Won't untuk versi pertama.
 ### 10.1 Autentikasi dan peran
 
 - Pengguna dapat register dengan email, password, dan display name.
-- Pengguna dapat login dan logout.
-- Sesi disimpan pada cookie httpOnly dengan masa berlaku 24 jam.
+- Pengguna dapat login, logout, dan refresh sesi.
+- Access token JWT berumur 15 menit dan refresh token opaque berumur 7 hari. Keduanya disimpan di cookie httpOnly.
+- Refresh token dirotasi setiap kali dipakai, disimpan sebagai hash di database, dan dilengkapi reuse detection.
 - Registrasi publik hanya menghasilkan role user.
 - Admin dibuat melalui seed atau perintah operasional, bukan registrasi publik.
 - Admin tidak boleh bid pada lelang yang dia buat.
 
 Kriteria penerimaan:
 
-- Sesi bertahan setelah refresh.
+- Sesi bertahan setelah refresh halaman dan setelah access token diperbarui lewat refresh token.
+- Logout mencabut refresh token dan tidak bisa dipakai lagi.
+- Reuse refresh token di luar grace period mencabut seluruh family.
 - Bid tanpa login mendapat 401.
 - User biasa yang membuka endpoint admin mendapat 403.
 - Admin yang mencoba bid pada lelangnya sendiri mendapat 403.
@@ -350,7 +353,8 @@ Jika target tidak tercapai, laporan harus memuat angka aktual dan bottleneck yan
 ### 11.3 Keamanan
 
 - Password di-hash dengan bcrypt atau algoritma setara.
-- JWT disimpan di cookie httpOnly, SameSite Lax, dan Secure di production.
+- Access token JWT 15 menit dan refresh token opaque 7 hari disimpan di cookie httpOnly, SameSite Lax, dan Secure di production.
+- Refresh token hanya disimpan sebagai hash di database dan dirotasi setiap kali dipakai.
 - Endpoint yang mengubah state memeriksa Origin.
 - WebSocket memeriksa Origin saat handshake.
 - Rate limit untuk bid dan login.
@@ -488,7 +492,8 @@ Fitur di fase ini tidak boleh menunda MVP.
 
 | Risiko | Dampak | Mitigasi |
 |---|---|---|
-| Dua bid bersamaan diproses tidak konsisten | Pemenang salah | Actor per room, transaksi database, row lock, integration test |
+| Dua bid bersamaan diproses tidak konsisten | Pemenang salah | Transaksi database, row lock, version, integration test |
+| Dua tab me-refresh token bersamaan | Logout massal karena reuse detection | Single-flight refresh di client, grace period 10 detik, respons `REFRESH_RACE` |
 | Jam client berbeda | Countdown menyesatkan | Waktu server di snapshot, hitung offset di client |
 | Bid menit terakhir membuat hasil tidak adil | Pengalaman buruk | Anti-sniping dengan batas perpanjangan |
 | Client kehilangan event saat putus | Harga tertinggal | Snapshot saat reconnect, sequence dan epoch |

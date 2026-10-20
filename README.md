@@ -10,9 +10,20 @@ Prototipe UI ruang lelang real-time untuk elektronik bekas, lengkap dengan login
 - `prototype/account.html`: profil dan bid pengguna.
 - `prototype/results.html`: arsip hasil lelang.
 - `prototype/admin.html`: halaman admin dengan gate admin.
+- `server/`: kerangka backend Go. Logika bisnis belum diisi.
 - `DESIGN.md`: arah visual, palet, tipografi, dan aturan desain.
 - `docs/prd/2026-10-20-live-auction-prd.md`: PRD produk, fitur, prioritas, metrik, dan rencana rilis.
-- `docs/superpowers/specs/2026-10-20-live-auction-design.md`: desain teknis dan arsitektur target.
+- `docs/superpowers/specs/2026-10-20-live-auction-design.md`: desain produk dan teknis utama.
+- `docs/superpowers/specs/2026-10-20-auction-backend-design.md`: spec backend, schema, auth, API, WebSocket.
+- `docs/superpowers/plans/2026-10-20-auction-backend.md`: plan implementasi backend langkah demi langkah.
+
+## Backend
+
+Kerangka ada di `server/`. Struktur mengikuti layer repo referensi `golang-restful`, tetapi memakai `net/http`, `pgx`, dan manual wiring.
+
+Auth backend memakai access token JWT 15 menit dan refresh token opaque 7 hari dengan rotasi. Keduanya disimpan di cookie `httpOnly`. Detail ada di spec backend.
+
+Mulai dari Task 1 di plan. Jangan menambahkan dependency sebelum task membutuhkannya.
 
 ## Jalankan
 
@@ -129,4 +140,4 @@ Hasil terakhir: PASS, tanpa error console atau page error.
 
 ## Berikutnya
 
-Implementasi backend mengikuti spec: Go, PostgreSQL, REST untuk command bid, WebSocket untuk event, actor per room, auth cookie, dan admin lifecycle. Prototipe ini menjadi acuan UI dan perilaku sebelum backend ditambahkan.
+Backend dikerjakan manual mengikuti plan di `docs/superpowers/plans/2026-10-20-auction-backend.md`. Kerangka package dan dokumen sudah tersedia. Prototipe tetap menjadi acuan UI dan perilaku.

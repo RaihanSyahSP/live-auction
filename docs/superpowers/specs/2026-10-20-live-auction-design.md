@@ -70,7 +70,9 @@ Admin dibuat melalui seed/CLI, bukan registrasi publik. Registrasi publik selalu
 ### 5.1 Auth & sesi
 
 - Register: email, password, display name. Email unik.
-- Login menghasilkan JWT yang disimpan di cookie `httpOnly`.
+- Login menghasilkan access token JWT 15 menit dan refresh token opaque 7 hari. Keduanya disimpan di cookie `httpOnly`.
+- Refresh token dirotasi setiap kali dipakai, disimpan sebagai hash di database, dan dilengkapi reuse detection.
+- Logout mencabut family refresh token dan menghapus kedua cookie.
 - `GET /api/auth/me` untuk hydrate sesi di SSR dan client.
 - Logout menghapus cookie.
 - Password di-hash dengan bcrypt cost 12.
@@ -280,62 +282,18 @@ Jika dua bid bersamaan masuk, actor memprosesnya berurutan. Hanya bid pertama ya
 
 ## 9. Data model
 
-Harga disimpan sebagai integer rupiah (`bigint`), bukan float.
+Skema database kanonik ada di:
 
-```sql
-users (
-  id            bigint generated always as identity primary key,
-  email         text not null unique,
-  password_hash text not null,
-  display_name  text not null,
-  role          text not null default 'user' check (role in ('user', 'admin')),
-  created_at    timestamptz not null default now()
-)
+`docs/superpowers/specs/2026-10-20-auction-backend-design.md`
 
-auctions (
-  id               bigint generated always as identity primary key,
-  created_by       bigint not null references users(id),
-  title            text not null,
-  description      text not null,
-  condition        text not null,
-  image_urls       text[] not null default '{}',
-  specs            jsonb not null default '[]',
-  starting_price   bigint not null check (starting_price > 0),
-  min_increment    bigint not null check (min_increment > 0),
-  duration_seconds int not null check (duration_seconds between 60 and 3600),
-  current_price    bigint not null,
-  highest_bidder_id bigint references users(id),
-  status           text not null default 'draft' check (status in ('draft', 'live', 'ended')),
-  starts_at        timestamptz,
-  ends_at          timestamptz,
-  extension_count  int not null default 0,
-  winner_id        bigint references users(id),
-  final_price      bigint,
-  created_at       timestamptz not null default now()
-)
+Ringkasan tabel:
 
--- Maksimal satu lelang live.
-create unique index one_live_auction on auctions ((true)) where status = 'live';
+- `users`: akun, password hash, display name, dan role.
+- `auctions`: lot, harga, status, waktu, versi, pemenang, dan snapshot data barang.
+- `bids`: bid per auction dengan idempotency key per auction dan user.
+- `refresh_tokens`: hash refresh token, family rotasi, expiry, dan status revoked.
 
-bids (
-  id              bigint generated always as identity primary key,
-  auction_id      bigint not null references auctions(id),
-  user_id         bigint not null references users(id),
-  amount          bigint not null check (amount > 0),
-  idempotency_key uuid not null,
-  created_at      timestamptz not null default now(),
-  unique (user_id, idempotency_key)
-)
-
-create index bids_auction_id_id on bids (auction_id, id desc);
-```
-
-Catatan:
-
-- `current_price` diinisialisasi sama dengan `starting_price` saat lelang dibuat.
-- `condition` berupa teks bebas terkontrol (mis. "Like new", "Good", "Fair").
-- Gambar hanya URL `http`/`https`; tidak ada upload.
-- Presence, `seq`, dan timer tidak disimpan di database.
+Harga disimpan sebagai integer rupiah (`bigint`), bukan float. Satu lelang live dijaga partial unique index. Presence, `seq`, dan timer tidak disimpan di database.
 
 ## 10. API
 
@@ -349,9 +307,10 @@ Semua respons error memakai bentuk:
 
 | Method | Path | Keterangan |
 |---|---|---|
-| POST | `/api/auth/register` | Body: email, password, display_name. Set cookie. |
-| POST | `/api/auth/login` | Body: email, password. Set cookie. |
-| POST | `/api/auth/logout` | Hapus cookie. |
+| POST | `/api/auth/register` | Body: email, password, display_name. Set access dan refresh cookie. |
+| POST | `/api/auth/login` | Body: email, password. Set access dan refresh cookie. |
+| POST | `/api/auth/refresh` | Rotasi refresh token dan set dua cookie baru. |
+| POST | `/api/auth/logout` | Cabut family refresh dan hapus dua cookie. |
 | GET | `/api/auth/me` | User saat ini atau 401. |
 
 ### Lelang
@@ -410,8 +369,10 @@ Aturan:
 ## 12. Keamanan
 
 - bcrypt cost 12; password minimal 8 karakter.
-- JWT HS256, umur 24 jam, secret dari environment.
-- Cookie `httpOnly`, `SameSite=Lax`, `Secure` di production, `Path=/`.
+- Access token JWT HS256, umur 15 menit, secret dari environment.
+- Refresh token opaque 32 byte, umur 7 hari, disimpan sebagai hash SHA-256 di database.
+- Cookie `httpOnly`, `SameSite=Lax`, `Secure` di production. Access cookie `Path=/`, refresh cookie `Path=/api/auth`.
+- Refresh token dirotasi setiap kali dipakai. Reuse di luar grace period mencabut seluruh family.
 - Endpoint yang mengubah state memeriksa header `Origin`; WebSocket memeriksa `Origin` saat handshake.
 - Rate limit login per IP: 10 percobaan/menit.
 - Semua query memakai parameter pgx; tidak ada string SQL yang dirakit dari input.
@@ -517,7 +478,7 @@ Jika target tidak tercapai, README mencantumkan angka aktual dan bottleneck yang
 
 ## 17. Acceptance criteria
 
-1. User dapat register, login, logout, dan sesi bertahan setelah refresh.
+1. User dapat register, login, logout, refresh access token, dan sesi bertahan setelah refresh halaman.
 2. Guest dapat menonton; form bid mengarahkan ke login.
 3. Dua browser melihat harga, bidder tertinggi, dan riwayat bid yang sama secara real-time.
 4. Bid di bawah minimum, bid setelah ended, bid oleh bidder tertinggi, dan bid oleh pembuat lelang ditolak dengan kode yang benar.
