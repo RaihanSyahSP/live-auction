@@ -12,6 +12,11 @@ const norm = (value) => value.replace(/\s+/g, " ").trim();
 const errors = [];
 const pageErrors = [];
 
+const skipLinkFocus = async (page) => {
+  await page.keyboard.press("Tab");
+  return page.evaluate(() => document.activeElement?.className || "");
+};
+
 const browser = await chromium.launch({ channel: CHANNEL, headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
 const page = await context.newPage();
@@ -25,6 +30,10 @@ await page.goto(BASE_URL, { waitUntil: "networkidle" });
 await page.waitForSelector('#main[aria-busy="false"]');
 await page.waitForFunction(() => document.querySelector("#ledger-list").children.length === 3);
 await page.evaluate(() => document.fonts.ready);
+
+assert.match(await skipLinkFocus(page), /skip-link/);
+await page.keyboard.press("Enter");
+assert.equal(new URL(page.url()).hash, "#main");
 
 assert.equal(norm(await page.locator("#price").innerText()), "Rp 7.200.000");
 assert.equal(norm(await page.locator("#live-label").innerText()), "LIVE");
@@ -85,6 +94,15 @@ assert.equal(norm(await page.locator("#price").innerText()), "Rp 7.400.000");
 assert.equal(await page.locator("#bid-status").isVisible(), false);
 await page.screenshot({ path: path.join(OUT, "desktop-outbid.png"), animations: "disabled" });
 
+await page.locator("#toast-close").click();
+assert.equal(await page.locator("#toast").isVisible(), false);
+
+await page.locator("#change-name").click();
+await page.waitForSelector("#name-form:not([hidden])");
+assert.equal(await page.locator("#name-input").inputValue(), "Raihan");
+await page.locator("#name-input").press("Enter");
+await page.waitForSelector("#identity-summary:not([hidden])");
+
 await page2.close();
 await page.waitForFunction(() => document.querySelector("#price-meta").textContent.includes("1 penonton"), null, {
   timeout: 9000,
@@ -96,7 +114,12 @@ await page.locator("#reset-demo").click();
 await page.waitForFunction(() => document.querySelector("#price").textContent.includes("6.500.000"));
 assert.equal(norm(await page.locator("#bid-count").innerText()), "0 bid");
 assert.equal(await page.locator("#ledger-empty").isVisible(), true);
-await page.locator("#amount-input").fill("6500000");
+
+await page.locator("#quick-bids button").nth(1).click();
+assert.equal(await page.locator("#amount-input").inputValue(), "6.600.000");
+await page.locator("#quick-bids button").nth(0).click();
+assert.equal(await page.locator("#amount-input").inputValue(), "6.500.000");
+
 await page.locator("#bid-submit").click();
 await page.waitForFunction(() => document.querySelector("#price").textContent.includes("6.500.000"));
 await page.locator("#simulate-rival").click();
@@ -203,14 +226,18 @@ console.log(
       status: "PASS",
       checks: [
         "initial data and 3 seeded bids",
+        "skip link receives focus and jumps to main",
         "name persists per tab across reload",
         "keyboard Enter submits the name form",
         "below-minimum bid rejected",
         "successful bid updates price and ledger",
         "second tab sees price and presence",
         "outbid toast on first tab and stale status cleared",
+        "toast close works",
+        "change name control works",
         "presence drops after tab closes",
         "reset clears bids",
+        "quick bid buttons update the amount",
         "rival simulation triggers outbid",
         "ended winner state",
         "ended unsold state",
