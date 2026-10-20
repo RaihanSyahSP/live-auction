@@ -8,7 +8,8 @@ Prototipe UI ruang lelang real-time untuk elektronik bekas, lengkap dengan halam
 - `prototype/index.html`: ruang lelang.
 - `prototype/admin.html`: halaman admin demo.
 - `DESIGN.md`: arah visual, palet, tipografi, dan aturan desain.
-- `docs/superpowers/specs/2026-10-20-live-auction-design.md`: desain produk dan teknis untuk implementasi berikutnya.
+- `docs/prd/2026-10-20-live-auction-prd.md`: PRD produk, fitur, prioritas, metrik, dan rencana rilis.
+- `docs/superpowers/specs/2026-10-20-live-auction-design.md`: desain teknis dan arsitektur target.
 
 ## Jalankan
 

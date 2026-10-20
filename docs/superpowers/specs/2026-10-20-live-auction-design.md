@@ -119,9 +119,10 @@ Admin dibuat melalui seed/CLI, bukan registrasi publik. Registrasi publik selalu
 
 ### 5.7 Admin
 
-- Membuat lelang: judul, deskripsi, kondisi, gambar, harga awal, increment, durasi.
+- Membuat lelang: judul, deskripsi, kondisi, gambar, harga awal, increment, dan durasi 1 sampai 60 menit.
 - Memulai lelang: status `draft` → `live`, `starts_at = now`, `ends_at = now + duration_seconds` yang sudah ditentukan saat pembuatan.
 - Mengakhiri lebih awal: status `live` → `ended`, pemenang dihitung dari bid tertinggi.
+- Menghapus draft: hanya status `draft` yang boleh dihapus.
 - Hanya satu lelang `live` pada satu waktu, dijaga partial unique index.
 - UI admin minimal berupa satu halaman form + daftar lelang.
 
@@ -300,7 +301,7 @@ auctions (
   image_urls       text[] not null default '{}',
   starting_price   bigint not null check (starting_price > 0),
   min_increment    bigint not null check (min_increment > 0),
-  duration_seconds int not null check (duration_seconds between 60 and 86400),
+  duration_seconds int not null check (duration_seconds between 60 and 3600),
   current_price    bigint not null,
   highest_bidder_id bigint references users(id),
   status           text not null default 'draft' check (status in ('draft', 'live', 'ended')),
@@ -368,6 +369,7 @@ Semua respons error memakai bentuk:
 | POST | `/api/admin/auctions` | Buat lelang draft. |
 | POST | `/api/admin/auctions/{id}/start` | Mulai lelang. |
 | POST | `/api/admin/auctions/{id}/end` | Akhiri lebih awal. |
+| DELETE | `/api/admin/auctions/{id}` | Hapus draft. |
 
 ### Operasional
 
@@ -386,6 +388,7 @@ Semua respons error memakai bentuk:
 | `CREATOR_CANNOT_BID` | 403 | Pembuat lelang mencoba bid. |
 | `AUCTION_NOT_FOUND` | 404 | ID tidak ada. |
 | `AUCTION_NOT_LIVE` | 409 | Bid/aksi pada lelang yang belum live atau sudah ended. |
+| `AUCTION_NOT_DRAFT` | 409 | Start atau hapus pada lelang yang bukan draft. |
 | `AUCTION_ALREADY_LIVE` | 409 | Mulai lelang saat ada lelang live lain. |
 | `BID_TOO_LOW` | 422 | Nominal di bawah minimum; `details.minimum` diisi. |
 | `ALREADY_HIGHEST` | 409 | Bidder sudah memegang harga tertinggi. |
@@ -521,7 +524,7 @@ Jika target tidak tercapai, README mencantumkan angka aktual dan bottleneck yang
 6. Bid dalam 60 detik terakhir memperpanjang lelang 60 detik, maksimal 5 kali.
 7. Lelang berakhir otomatis; pemenang dan harga final benar; lelang tanpa bid berstatus tidak terjual.
 8. Client yang reconnect menerima snapshot dan tidak kehilangan bid.
-9. Admin dapat membuat, memulai, dan mengakhiri lelang; hanya satu lelang live pada satu waktu.
+9. Admin dapat membuat, memulai, mengakhiri, dan menghapus draft; hanya satu lelang live pada satu waktu.
 10. Server restart saat lelang live memulihkan timer dan state dari database.
 11. `go test -race ./...` dan Playwright lulus.
 12. `/metrics` menampilkan metrik yang terdaftar dan log berformat JSON.
