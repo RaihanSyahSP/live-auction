@@ -77,7 +77,7 @@ Admin dibuat melalui seed/CLI, bukan registrasi publik. Registrasi publik selalu
 
 ### 5.2 Halaman lelang
 
-- Judul, deskripsi, kondisi, daftar URL gambar.
+- Judul, deskripsi, kondisi, kelengkapan, spesifikasi, daftar URL gambar.
 - Harga awal, kelipatan minimum, harga saat ini, nama bidder tertinggi.
 - Countdown yang mengacu pada waktu server.
 - Jumlah penonton online.
@@ -119,7 +119,7 @@ Admin dibuat melalui seed/CLI, bukan registrasi publik. Registrasi publik selalu
 
 ### 5.7 Admin
 
-- Membuat lelang: judul, deskripsi, kondisi, gambar, harga awal, increment, dan durasi 1 sampai 60 menit.
+- Membuat lelang: judul, deskripsi, kondisi, kelengkapan, spesifikasi, gambar, harga awal, increment, dan durasi 1 sampai 60 menit.
 - Memulai lelang: status `draft` → `live`, `starts_at = now`, `ends_at = now + duration_seconds` yang sudah ditentukan saat pembuatan.
 - Mengakhiri lebih awal: status `live` → `ended`, pemenang dihitung dari bid tertinggi.
 - Menghapus draft: hanya status `draft` yang boleh dihapus.
@@ -299,6 +299,7 @@ auctions (
   description      text not null,
   condition        text not null,
   image_urls       text[] not null default '{}',
+  specs            jsonb not null default '[]',
   starting_price   bigint not null check (starting_price > 0),
   min_increment    bigint not null check (min_increment > 0),
   duration_seconds int not null check (duration_seconds between 60 and 3600),

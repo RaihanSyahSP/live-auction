@@ -1,5 +1,4 @@
-export const STORAGE_KEY = "lelang-demo-state-v2";
-export const NAME_KEY = "lelang-demo-name";
+export const STORAGE_KEY = "lelang-demo-state-v4";
 export const CHANNEL_NAME = "lelang-demo-channel";
 export const LOCK_NAME = "lelang-demo-lock";
 export const MAX_EXTENSIONS = 5;
@@ -85,6 +84,7 @@ function makeAuction({
   description,
   condition,
   includes,
+  specs = [],
   startingPrice,
   minIncrement,
   durationSeconds,
@@ -100,6 +100,7 @@ function makeAuction({
     description,
     condition,
     includes,
+    specs,
     startingPrice,
     minIncrement,
     durationSeconds,
@@ -109,8 +110,11 @@ function makeAuction({
     endsAt,
     extensionCount: 0,
     highestBidder: "",
+    highestBidderEmail: "",
     winner: "",
+    winnerEmail: "",
     finalPrice: null,
+    endedAt: null,
     bids: [],
   };
 }
@@ -126,6 +130,12 @@ export function seedState({ withBids = true, withDraft = true } = {}) {
       "Kamera full-frame 24 MP dengan stabilisasi 5-axis. Body saja, tanpa lensa. Dial dan tombol responsif, layar belakang punya baret halus. Baterai masih menyala normal.",
     condition: "Used, 8/10",
     includes: ["Body kamera", "Baterai NP-FW50", "Charger", "Tutup body"],
+    specs: [
+      { label: "Sensor", value: "Full-frame 24 MP" },
+      { label: "Mount", value: "Sony E-mount" },
+      { label: "Stabilisasi", value: "5-axis in-body" },
+      { label: "Video", value: "1080p" },
+    ],
     startingPrice: 6_500_000,
     minIncrement: 100_000,
     durationSeconds: 600,
@@ -139,24 +149,28 @@ export function seedState({ withBids = true, withDraft = true } = {}) {
       {
         id: 3,
         name: "Peserta 03",
+        email: "peserta03@demo.local",
         amount: 7_200_000,
         at: new Date(now - 60_000).toISOString(),
       },
       {
         id: 2,
         name: "Peserta 02",
+        email: "peserta02@demo.local",
         amount: 6_900_000,
         at: new Date(now - 120_000).toISOString(),
       },
       {
         id: 1,
         name: "Peserta 01",
+        email: "peserta01@demo.local",
         amount: 6_700_000,
         at: new Date(now - 180_000).toISOString(),
       },
     ];
     live.currentPrice = 7_200_000;
     live.highestBidder = "Peserta 03";
+    live.highestBidderEmail = "peserta03@demo.local";
   }
 
   const auctions = [live];
@@ -172,6 +186,12 @@ export function seedState({ withBids = true, withDraft = true } = {}) {
           "Mirrorless APS-C 24 MP dengan dial fisik dan layar lipat. Body saja, tanpa lensa. Kondisi mekanis normal, ada bekas pakai halus di bodi.",
         condition: "Used, 7/10",
         includes: ["Body kamera", "Baterai", "Charger"],
+        specs: [
+          { label: "Sensor", value: "APS-C 24 MP" },
+          { label: "Mount", value: "Fujifilm X" },
+          { label: "Stabilisasi", value: "Tidak ada" },
+          { label: "Video", value: "4K" },
+        ],
         startingPrice: 8_500_000,
         minIncrement: 100_000,
         durationSeconds: 600,
@@ -180,7 +200,7 @@ export function seedState({ withBids = true, withDraft = true } = {}) {
     );
   }
 
-  return { version: 2, auctions };
+  return { version: 4, auctions };
 }
 
 function isValidBid(bid) {
@@ -188,6 +208,7 @@ function isValidBid(bid) {
     bid &&
     typeof bid.id === "number" &&
     typeof bid.name === "string" &&
+    typeof bid.email === "string" &&
     typeof bid.amount === "number" &&
     !Number.isNaN(Date.parse(bid.at))
   );
@@ -200,14 +221,28 @@ function isValidAuction(auction) {
   if (typeof auction.description !== "string") return false;
   if (typeof auction.condition !== "string") return false;
   if (!Array.isArray(auction.includes)) return false;
+  if (
+    !Array.isArray(auction.specs) ||
+    !auction.specs.every(
+      (spec) =>
+        spec &&
+        typeof spec.label === "string" &&
+        typeof spec.value === "string",
+    )
+  ) {
+    return false;
+  }
   if (typeof auction.startingPrice !== "number") return false;
   if (typeof auction.minIncrement !== "number") return false;
   if (typeof auction.currentPrice !== "number") return false;
   if (typeof auction.durationSeconds !== "number") return false;
   if (typeof auction.extensionCount !== "number") return false;
   if (typeof auction.highestBidder !== "string") return false;
+  if (typeof auction.highestBidderEmail !== "string") return false;
   if (typeof auction.winner !== "string") return false;
+  if (typeof auction.winnerEmail !== "string") return false;
   if (auction.finalPrice !== null && typeof auction.finalPrice !== "number") return false;
+  if (auction.endedAt && Number.isNaN(Date.parse(auction.endedAt))) return false;
   if (!Array.isArray(auction.bids) || !auction.bids.every(isValidBid)) return false;
 
   if (auction.status === "draft") return true;
@@ -219,7 +254,7 @@ function isValidAuction(auction) {
 export function isValidState(value) {
   return (
     value &&
-    value.version === 2 &&
+    value.version === 4 &&
     Array.isArray(value.auctions) &&
     value.auctions.every(isValidAuction)
   );
@@ -296,11 +331,14 @@ function nextBidId(auction) {
 export function endAuction(auction) {
   if (auction.status !== "live") return;
   auction.status = "ended";
+  auction.endedAt = new Date().toISOString();
   if (auction.highestBidder) {
     auction.winner = auction.highestBidder;
+    auction.winnerEmail = auction.highestBidderEmail;
     auction.finalPrice = auction.currentPrice;
   } else {
     auction.winner = "";
+    auction.winnerEmail = "";
     auction.finalPrice = null;
   }
 }
@@ -334,7 +372,7 @@ export async function initState() {
   });
 }
 
-export async function placeBid({ auctionId, name, amount }) {
+export async function placeBid({ auctionId, name, email, amount }) {
   return withStateLock(async () => {
     const loaded = readState();
     const state = loaded.state;
@@ -354,6 +392,9 @@ export async function placeBid({ auctionId, name, amount }) {
 
     if (!name || name.length < 2) {
       return { ok: false, error: "Isi nama dulu sebelum bid.", state };
+    }
+    if (!email || !email.includes("@")) {
+      return { ok: false, error: "Sesi tidak valid. Masuk ulang.", state };
     }
     if (!Number.isSafeInteger(amount) || amount <= 0) {
       return { ok: false, error: "Nominal bid tidak valid.", state };
@@ -382,12 +423,14 @@ export async function placeBid({ auctionId, name, amount }) {
     const bid = {
       id: nextBidId(auction),
       name,
+      email,
       amount,
       at: new Date(now).toISOString(),
     };
     auction.bids.unshift(bid);
     auction.currentPrice = amount;
     auction.highestBidder = name;
+    auction.highestBidderEmail = email;
 
     let extended = false;
     const remaining = Date.parse(auction.endsAt) - now;
@@ -455,6 +498,17 @@ export async function createDraft(input) {
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean),
+      specs: String(input.specs || "")
+        .split("\n")
+        .map((line) => {
+          const separator = line.indexOf(":");
+          if (separator === -1) return null;
+          const label = line.slice(0, separator).trim();
+          const value = line.slice(separator + 1).trim();
+          if (!label || !value) return null;
+          return { label, value };
+        })
+        .filter(Boolean),
       startingPrice,
       minIncrement,
       durationSeconds: Math.round(durationMinutes * 60),
@@ -491,8 +545,11 @@ export async function startAuction(id) {
     auction.endsAt = new Date(now + auction.durationSeconds * 1000).toISOString();
     auction.currentPrice = auction.startingPrice;
     auction.highestBidder = "";
+    auction.highestBidderEmail = "";
     auction.winner = "";
+    auction.winnerEmail = "";
     auction.finalPrice = null;
+    auction.endedAt = null;
     auction.extensionCount = 0;
     auction.bids = [];
     writeState(state);

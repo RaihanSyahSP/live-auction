@@ -1,7 +1,13 @@
+import { getSession } from "./auth.js";
+import {
+  currentPath,
+  loginUrl,
+  mountAuthLinks,
+  registerUrl,
+} from "./auth-ui.js";
 import {
   MAX_AMOUNT,
   MAX_EXTENSIONS,
-  NAME_KEY,
   TAB_ID,
   broadcast,
   connectStateChannel,
@@ -36,6 +42,15 @@ const refs = {
   lotSheet: document.getElementById("lot-sheet"),
   auctionSection: document.getElementById("auction-section"),
   noAuction: document.getElementById("no-auction"),
+  headerLot: document.getElementById("header-lot"),
+  authLinks: document.getElementById("auth-links"),
+  imageLot: document.getElementById("image-lot"),
+  lotTitleMain: document.getElementById("lot-title-main"),
+  lotSubtitle: document.getElementById("lot-subtitle"),
+  lotDescription: document.getElementById("lot-description"),
+  lotCondition: document.getElementById("lot-condition"),
+  lotIncludes: document.getElementById("lot-includes"),
+  lotSpecs: document.getElementById("lot-specs"),
   liveState: document.getElementById("live-state"),
   liveLabel: document.getElementById("live-label"),
   priceLabel: document.getElementById("price-label"),
@@ -45,11 +60,10 @@ const refs = {
   extensionNote: document.getElementById("extension-note"),
   timeFill: document.getElementById("time-fill"),
   identitySummary: document.getElementById("identity-summary"),
+  identityGuest: document.getElementById("identity-guest"),
   identityName: document.getElementById("identity-name"),
-  changeName: document.getElementById("change-name"),
-  nameForm: document.getElementById("name-form"),
-  nameInput: document.getElementById("name-input"),
-  nameError: document.getElementById("name-error"),
+  loginLink: document.getElementById("login-link"),
+  registerLink: document.getElementById("register-link"),
   bidForm: document.getElementById("bid-form"),
   amountInput: document.getElementById("amount-input"),
   minimumBid: document.getElementById("minimum-bid"),
@@ -76,11 +90,10 @@ const refs = {
   priceAnnouncer: document.getElementById("price-announcer"),
 };
 
+let session = null;
 let currentState = null;
 let currentAuction = null;
 let selectedAuctionId = null;
-let currentName = "";
-let editingName = false;
 let pendingBid = false;
 let amountValue = 0;
 let amountTouched = false;
@@ -121,16 +134,17 @@ function applyState(next) {
   }
 
   if (previousAuction && previousAuction.id === currentAuction.id) {
-    const previousHighest = previousAuction.highestBidder;
+    const previousHighestEmail = previousAuction.highestBidderEmail;
     const previousPrice = previousAuction.currentPrice;
     const previousExtensions = previousAuction.extensionCount;
     const previousBidCount = previousAuction.bids.length;
 
     if (
       currentAuction.status === "live" &&
-      previousHighest === currentName &&
-      currentAuction.highestBidder &&
-      currentAuction.highestBidder !== currentName &&
+      session &&
+      previousHighestEmail === session.email &&
+      currentAuction.highestBidderEmail &&
+      currentAuction.highestBidderEmail !== session.email &&
       currentAuction.bids.length > previousBidCount
     ) {
       refs.bidStatus.hidden = true;
@@ -155,6 +169,7 @@ function applyState(next) {
 }
 
 function renderEmpty() {
+  refs.headerLot.textContent = "LOT";
   refs.noAuction.hidden = false;
   refs.lotSheet.hidden = true;
   refs.auctionSection.hidden = true;
@@ -175,10 +190,34 @@ function render() {
   refs.auctionSection.hidden = false;
 
   const auction = currentAuction;
+  const hasSession = Boolean(session);
   const isLive = auction.status === "live";
   const isDraft = auction.status === "draft";
   const isEnded = auction.status === "ended";
   const hasBids = auction.bids.length > 0;
+
+  refs.headerLot.textContent = `LOT ${auction.lot}`;
+  refs.imageLot.textContent = `LOT ${auction.lot}`;
+  refs.lotTitleMain.textContent = auction.title;
+  refs.lotSubtitle.textContent = auction.subtitle || "";
+  refs.lotSubtitle.hidden = !auction.subtitle;
+  refs.lotDescription.textContent = auction.description;
+  refs.lotCondition.textContent = auction.condition;
+  refs.lotIncludes.textContent = auction.includes.length
+    ? auction.includes.join(", ")
+    : "Tidak ada catatan";
+  refs.lotSpecs.hidden = auction.specs.length === 0;
+  refs.lotSpecs.replaceChildren(
+    ...auction.specs.map((spec) => {
+      const row = document.createElement("div");
+      const term = document.createElement("dt");
+      term.textContent = spec.label;
+      const value = document.createElement("dd");
+      value.textContent = spec.value;
+      row.append(term, value);
+      return row;
+    }),
+  );
 
   refs.liveState.classList.toggle("is-ended", isEnded);
   refs.liveState.classList.toggle("is-draft", isDraft);
@@ -193,17 +232,13 @@ function render() {
       ? `Diperpanjang ${auction.extensionCount} dari ${MAX_EXTENSIONS} kali`
       : "";
 
-  const hasName = currentName.length > 0;
-  refs.identitySummary.hidden = !hasName || editingName;
-  refs.nameForm.hidden = hasName && !editingName;
-  refs.identityName.textContent = currentName;
-  if (!hasName || editingName) {
-    if (document.activeElement !== refs.nameInput) {
-      refs.nameInput.value = currentName;
-    }
-  }
+  refs.identitySummary.hidden = !hasSession;
+  refs.identityGuest.hidden = hasSession;
+  refs.identityName.textContent = session?.name || "";
+  refs.loginLink.href = loginUrl(currentPath());
+  refs.registerLink.href = registerUrl(currentPath());
 
-  refs.bidForm.hidden = !isLive;
+  refs.bidForm.hidden = !isLive || !hasSession;
   refs.previewNote.hidden = !isDraft;
   refs.result.hidden = !isEnded;
   refs.simulateRival.disabled = !isLive;
@@ -214,15 +249,16 @@ function render() {
     const minimum = getMinimum(auction);
     refs.minimumBid.textContent = idr.format(minimum);
     refs.increment.textContent = idr.format(auction.minIncrement);
-
-    if (!amountTouched || amountValue < minimum) {
-      amountValue = minimum;
-      amountTouched = false;
-      refs.amountInput.value = numberFormat.format(minimum);
-    }
-
     updateQuickBids(minimum, auction.minIncrement);
-    updateBidButton(minimum);
+
+    if (hasSession) {
+      if (!amountTouched || amountValue < minimum) {
+        amountValue = minimum;
+        amountTouched = false;
+        refs.amountInput.value = numberFormat.format(minimum);
+      }
+      updateBidButton(minimum);
+    }
   } else {
     refs.bidError.hidden = true;
     refs.bidStatus.hidden = true;
@@ -336,11 +372,11 @@ function updateBidButton(minimum) {
   const isLive = currentAuction.status === "live";
   let label = `Pasang bid ${idr.format(amountValue || minimum)}`;
   if (pendingBid) label = "Mengirim bid...";
-  else if (!currentName) label = "Isi nama untuk bid";
+  else if (!session) label = "Masuk untuk bid";
   else if (!isLive) label = "Lelang selesai";
 
   refs.bidSubmit.textContent = label;
-  refs.bidSubmit.disabled = !isLive || pendingBid || !currentName;
+  refs.bidSubmit.disabled = !isLive || pendingBid || !session;
 }
 
 function viewerCount() {
@@ -365,11 +401,6 @@ function showBidError(message) {
   refs.bidError.textContent = message;
   refs.bidError.hidden = false;
   refs.bidStatus.hidden = true;
-}
-
-function showNameError(message) {
-  refs.nameError.textContent = message;
-  refs.nameError.hidden = false;
 }
 
 function showBanner(message) {
@@ -443,45 +474,6 @@ function setupQuickBids() {
 }
 
 function setupEvents() {
-  refs.nameForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const value = refs.nameInput.value.trim();
-    if (value.length < 2) {
-      showNameError("Nama minimal 2 karakter.");
-      refs.nameInput.focus();
-      return;
-    }
-    if (value.length > 40) {
-      showNameError("Nama maksimal 40 karakter.");
-      refs.nameInput.focus();
-      return;
-    }
-    currentName = value;
-    editingName = false;
-    refs.nameError.hidden = true;
-    refs.bidError.hidden = true;
-    try {
-      sessionStorage.setItem(NAME_KEY, value);
-    } catch {
-      showBanner(
-        "Nama tidak bisa disimpan di tab ini, tetapi tetap dipakai selama halaman terbuka.",
-      );
-    }
-    render();
-    refs.amountInput.focus();
-  });
-
-  refs.nameInput.addEventListener("input", () => {
-    refs.nameError.hidden = true;
-  });
-
-  refs.changeName.addEventListener("click", () => {
-    editingName = true;
-    render();
-    refs.nameInput.focus();
-    refs.nameInput.select();
-  });
-
   refs.amountInput.addEventListener("focus", () => {
     refs.amountInput.select();
   });
@@ -502,11 +494,8 @@ function setupEvents() {
     refs.bidError.hidden = true;
     refs.bidStatus.hidden = true;
 
-    if (!currentName) {
-      editingName = true;
-      render();
-      showNameError("Isi nama dulu sebelum bid.");
-      refs.nameInput.focus();
+    if (!session) {
+      window.location.href = loginUrl(currentPath());
       return;
     }
     if (!currentAuction || currentAuction.status !== "live") {
@@ -537,7 +526,8 @@ function setupEvents() {
 
     const result = await placeBid({
       auctionId: currentAuction.id,
-      name: currentName,
+      name: session.name,
+      email: session.email,
       amount: amountValue,
     });
     pendingBid = false;
@@ -571,7 +561,6 @@ function setupEvents() {
     }
     const next = await resetDemo();
     pendingBid = false;
-    editingName = false;
     amountTouched = false;
     refs.bidError.hidden = true;
     refs.bidStatus.hidden = true;
@@ -585,7 +574,6 @@ function setupEvents() {
     }
     const next = await resetDemo();
     pendingBid = false;
-    editingName = false;
     amountTouched = false;
     refs.bidError.hidden = true;
     refs.bidStatus.hidden = true;
@@ -595,7 +583,7 @@ function setupEvents() {
 
   refs.simulateRival.addEventListener("click", async () => {
     if (!currentAuction || currentAuction.status !== "live") return;
-    const wasHighest = currentAuction.highestBidder === currentName;
+    const wasHighest = currentAuction.highestBidderEmail === session?.email;
     const minimum = getMinimum(currentAuction);
     const rivalName =
       currentAuction.highestBidder === "Penantang demo"
@@ -604,6 +592,7 @@ function setupEvents() {
     const result = await placeBid({
       auctionId: currentAuction.id,
       name: rivalName,
+      email: "rival@demo.local",
       amount: minimum,
     });
     if (!result.ok) {
@@ -626,9 +615,6 @@ function setupEvents() {
   });
 
   window.addEventListener("pagehide", sayGoodbye);
-  window.addEventListener("beforeunload", () => {
-    sayGoodbye();
-  });
 }
 
 async function tick() {
@@ -647,12 +633,10 @@ async function tick() {
 }
 
 async function init() {
-  try {
-    const storedName = sessionStorage.getItem(NAME_KEY)?.trim() || "";
-    currentName = storedName.length >= 2 ? storedName : "";
-  } catch {
-    currentName = "";
-  }
+  session = getSession();
+  mountAuthLinks(refs.authLinks, { logoutTarget: "index.html" });
+  refs.loginLink.href = loginUrl(currentPath());
+  refs.registerLink.href = registerUrl(currentPath());
 
   setupQuickBids();
   setupEvents();
@@ -662,7 +646,7 @@ async function init() {
   try {
     loaded = await initState();
   } catch {
-    currentState = { version: 2, auctions: [] };
+    currentState = { version: 4, auctions: [] };
     showBanner("Sesi demo tidak bisa dimuat. Coba muat ulang halaman.");
     loaded = { state: currentState, recovered: false };
   }

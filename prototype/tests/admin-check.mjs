@@ -22,9 +22,17 @@ page.on("console", (msg) => {
 page.on("pageerror", (err) => pageErrors.push(`admin: ${err.message}`));
 
 await page.goto(`${BASE_URL}admin.html`, { waitUntil: "networkidle" });
+await page.waitForSelector("#admin-gate:not([hidden])");
+assert.equal(await page.locator("#admin-main").isVisible(), false);
+assert.match(norm(await page.locator("#gate-message").innerText()), /memerlukan akun admin/);
+await page.screenshot({ path: path.join(OUT, "admin-gate.png"), fullPage: true, animations: "disabled" });
+
+await page.locator("#admin-demo-login").click();
+await page.waitForSelector("#admin-main:not([hidden])");
 await page.waitForSelector('#admin-main[aria-busy="false"]');
 await page.waitForFunction(() => document.querySelectorAll(".admin-card").length >= 2);
 await page.evaluate(() => document.fonts.ready);
+assert.match(norm(await page.locator("#auth-links").innerText()), /Akun: Admin Demo/);
 
 assert.match(norm(await page.locator("#admin-summary").innerText()), /1 live · 1 draft/);
 const liveCard = page.locator('[data-auction-id="1"]');
@@ -33,6 +41,20 @@ assert.match(norm(await liveCard.locator(".admin-status").innerText()), /LIVE/);
 assert.match(norm(await draftCard.locator(".admin-status").innerText()), /DRAFT/);
 assert.equal(await draftCard.locator('button[data-action="start"]').isDisabled(), true);
 await page.screenshot({ path: path.join(OUT, "admin-initial.png"), fullPage: true, animations: "disabled" });
+
+// Preview the draft before starting it.
+const preview = await context.newPage();
+await preview.goto(`${BASE_URL}index.html?auction=2`, { waitUntil: "networkidle" });
+await preview.waitForSelector('#main[aria-busy="false"]');
+assert.equal(norm(await preview.locator("#live-label").innerText()), "DRAFT");
+assert.equal(await preview.locator("#preview-note").isVisible(), true);
+assert.equal(await preview.locator("#bid-form").isVisible(), false);
+assert.equal(norm(await preview.locator("#header-lot").innerText()), "LOT 002");
+assert.match(norm(await preview.locator("#lot-title").innerText()), /Fujifilm X-T2/);
+assert.match(norm(await preview.locator("#lot-condition").innerText()), /Used, 7\/10/);
+assert.match(norm(await preview.locator("#lot-specs").innerText()), /APS-C 24 MP/);
+await preview.screenshot({ path: path.join(OUT, "admin-preview.png"), fullPage: true, animations: "disabled" });
+await preview.close();
 
 // End the seeded live auction, then start the seeded draft.
 page.once("dialog", (dialog) => dialog.accept());
@@ -51,29 +73,28 @@ await page.waitForFunction(() => {
   return card?.querySelector(".admin-status")?.textContent.trim() === "LIVE";
 });
 assert.match(norm(await page.locator("#admin-summary").innerText()), /1 live/);
-assert.equal(
-  await page.locator('[data-auction-id="2"] a[href="index.html?auction=2"]').count(),
-  1,
-);
 
-// Open the started auction in the room and place a bid.
+// Open the started auction in a new tab, log in as a bidder, and bid.
 const room = await context.newPage();
 room.on("console", (msg) => {
   if (msg.type() === "error") errors.push(`room: ${msg.text()}`);
 });
 room.on("pageerror", (err) => pageErrors.push(`room: ${err.message}`));
-await room.goto(`${BASE_URL}index.html?auction=2`, { waitUntil: "networkidle" });
+
+const next = encodeURIComponent("index.html?auction=2");
+await room.goto(`${BASE_URL}login.html?next=${next}`, { waitUntil: "networkidle" });
+await room.waitForSelector('[data-demo-email="raihan@example.com"]');
+await room.locator('[data-demo-email="raihan@example.com"]').click();
+await room.waitForURL(/auction=2/);
 await room.waitForSelector('#main[aria-busy="false"]');
+assert.match(norm(await room.locator("#identity-summary").innerText()), /Bid sebagai Raihan/);
 assert.equal(norm(await room.locator("#live-label").innerText()), "LIVE");
 assert.equal(norm(await room.locator("#price").innerText()), "Rp 8.500.000");
 assert.equal(norm(await room.locator("#bid-count").innerText()), "0 bid");
 
-await room.locator("#name-input").fill("Admin Test Bidder");
-await room.locator("#name-input").press("Enter");
-await room.waitForSelector("#identity-summary:not([hidden])");
 await room.locator("#bid-submit").click();
 await room.waitForFunction(() => document.querySelector("#price").textContent.includes("8.500.000"));
-assert.match(norm(await room.locator("#ledger-list li:first-child").innerText()), /Admin Test Bidder/);
+assert.match(norm(await room.locator("#ledger-list li:first-child").innerText()), /Raihan/);
 
 // Admin list receives the bid through BroadcastChannel.
 await page.waitForFunction(() => {
@@ -89,9 +110,16 @@ await page.waitForFunction(() => {
   return card?.querySelector(".admin-status")?.textContent.trim() === "SELESAI";
 });
 await room.waitForSelector("#result:not([hidden])");
-assert.match(norm(await room.locator("#result-title").innerText()), /Admin Test Bidder memenangkan lot ini/);
+assert.match(norm(await room.locator("#result-title").innerText()), /Raihan memenangkan lot ini/);
 assert.match(norm(await room.locator("#result-price").innerText()), /Rp 8\.500\.000/);
 await page.screenshot({ path: path.join(OUT, "admin-ended.png"), fullPage: true, animations: "disabled" });
+
+await room.goto(`${BASE_URL}results.html`, { waitUntil: "networkidle" });
+await room.waitForSelector('#results-main[aria-busy="false"]');
+assert.match(norm(await room.locator("#results-list").innerText()), /Raihan/);
+assert.match(norm(await room.locator("#results-list").innerText()), /Rp 8\.500\.000/);
+await room.screenshot({ path: path.join(OUT, "admin-results.png"), fullPage: true, animations: "disabled" });
+await room.close();
 
 // Create a new draft and check validation and deletion.
 await page.locator("#auction-title").fill("Kamera uji admin");
@@ -99,6 +127,7 @@ await page.locator("#auction-subtitle").fill("Body only");
 await page.locator("#auction-description").fill("Kamera untuk menguji alur draft dari halaman admin.");
 await page.locator("#auction-condition").fill("Used, 8/10");
 await page.locator("#auction-includes").fill("Body, baterai");
+await page.locator("#auction-specs").fill("Sensor: APS-C 24 MP\nMount: Fujifilm X");
 await page.locator("#starting-price").fill("1000000");
 await page.locator("#min-increment").fill("50000");
 await page.locator("#duration").fill("5");
@@ -194,13 +223,17 @@ console.log(
     {
       status: "PASS",
       checks: [
+        "admin gate blocks guests",
+        "demo admin login opens admin",
         "admin loads with live and draft auction",
+        "draft preview shows draft and disables bidding",
         "start is blocked while another auction is live",
         "end live auction moves it to ended",
         "start draft moves it to live",
-        "room opens the started auction",
+        "bidder logs in and opens the started auction",
         "bid in room updates admin price and bid count",
         "end from admin updates room winner and final price",
+        "results archive shows the winner",
         "create draft through form",
         "delete draft",
         "empty form validation",

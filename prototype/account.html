@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Akun: Lelang</title>
+    <meta name="description" content="Profil dan riwayat bid kamu di prototipe lelang.">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="account.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#account-main">Lewati ke konten</a>
+
+    <div class="page">
+      <header class="masthead">
+        <div class="masthead-brand">
+          <p class="wordmark">LELANG</p>
+          <p class="wordmark-note">Akun pembeli</p>
+        </div>
+        <div class="masthead-meta">
+          <p class="lot-id">AKUN DEMO</p>
+          <a class="text-link" href="index.html">Buka ruang lelang</a>
+          <div class="auth-links" id="auth-links"></div>
+        </div>
+      </header>
+
+      <main id="account-main" class="account-layout" aria-busy="true">
+        <section class="account-profile" id="account-profile" hidden aria-labelledby="profile-title">
+          <p class="kicker">Akun</p>
+          <h1 id="profile-title">Profil</h1>
+          <dl class="profile-meta">
+            <div><dt>Nama</dt><dd id="profile-name"></dd></div>
+            <div><dt>Email</dt><dd id="profile-email"></dd></div>
+            <div><dt>Peran</dt><dd id="profile-role"></dd></div>
+          </dl>
+          <div class="auth-actions">
+            <a class="button button-secondary" href="index.html">Buka ruang</a>
+            <a class="button button-secondary" id="admin-link" href="admin.html" hidden>Buka admin</a>
+            <button type="button" class="button button-secondary" id="logout-account">Keluar</button>
+          </div>
+        </section>
+
+        <section class="account-bids" aria-labelledby="my-bids-title">
+          <div class="account-bids-head">
+            <div>
+              <p class="kicker">Aktivitas</p>
+              <h2 id="my-bids-title">Bid saya</h2>
+            </div>
+            <p class="ledger-count" id="my-bid-count">0 bid</p>
+          </div>
+          <p class="ledger-loading" id="account-loading">Memuat bid...</p>
+          <ol class="account-bid-list" id="account-bid-list"></ol>
+          <p class="empty-state" id="account-empty" hidden>
+            Belum ada bid. Buka ruang lelang dan pasang bid pertama.
+          </p>
+          <p class="ledger-note">Bid berasal dari state demo yang tersimpan di browser ini.</p>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-copy">
+          <p>Prototipe akun. Email dan password hanya tersimpan di browser.</p>
+        </div>
+        <div class="demo-controls">
+          <a class="text-link" href="results.html">Lihat hasil lelang</a>
+        </div>
+      </footer>
+    </div>
+
+    <noscript><p class="noscript">Halaman akun ini memerlukan JavaScript.</p></noscript>
+  </body>
+</html>

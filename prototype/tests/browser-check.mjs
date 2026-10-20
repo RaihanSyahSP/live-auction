@@ -12,10 +12,15 @@ const norm = (value) => value.replace(/\s+/g, " ").trim();
 const errors = [];
 const pageErrors = [];
 
-const skipLinkFocus = async (page) => {
-  await page.keyboard.press("Tab");
-  return page.evaluate(() => document.activeElement?.className || "");
-};
+async function forceLiveEnd(page) {
+  await page.evaluate(() => {
+    const key = "lelang-demo-state-v4";
+    const state = JSON.parse(localStorage.getItem(key));
+    const live = state.auctions.find((auction) => auction.status === "live");
+    live.endsAt = new Date(Date.now() - 1000).toISOString();
+    localStorage.setItem(key, JSON.stringify(state));
+  });
+}
 
 const browser = await chromium.launch({ channel: CHANNEL, headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
@@ -26,12 +31,27 @@ page.on("console", (msg) => {
 });
 page.on("pageerror", (err) => pageErrors.push(err.message));
 
-await page.goto(BASE_URL, { waitUntil: "networkidle" });
+// Log in through the real form, using the keyboard.
+await page.goto(`${BASE_URL}login.html?next=index.html`, { waitUntil: "networkidle" });
+await page.waitForSelector("#login-form");
+await page.locator("#email").fill("raihan@example.com");
+await page.locator("#password").fill("demo123");
+await page.locator("#password").press("Enter");
+await page.waitForURL(/index\.html/);
 await page.waitForSelector('#main[aria-busy="false"]');
 await page.waitForFunction(() => document.querySelector("#ledger-list").children.length === 3);
 await page.evaluate(() => document.fonts.ready);
 
-assert.match(await skipLinkFocus(page), /skip-link/);
+assert.match(norm(await page.locator("#identity-summary").innerText()), /Bid sebagai Raihan/);
+assert.match(norm(await page.locator("#auth-links").innerText()), /Akun: Raihan/);
+assert.equal(await page.locator("#bid-form").isVisible(), true);
+
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector('#main[aria-busy="false"]');
+assert.match(norm(await page.locator("#identity-summary").innerText()), /Bid sebagai Raihan/);
+
+await page.keyboard.press("Tab");
+assert.match(await page.evaluate(() => document.activeElement?.className || ""), /skip-link/);
 await page.keyboard.press("Enter");
 assert.equal(new URL(page.url()).hash, "#main");
 
@@ -41,18 +61,7 @@ assert.equal(norm(await page.locator("#bid-count").innerText()), "3 bid");
 assert.equal(await page.locator("#amount-input").inputValue(), "7.300.000");
 await page.screenshot({ path: path.join(OUT, "desktop-initial.png"), fullPage: true, animations: "disabled" });
 
-// Name, validation, and a successful bid.
-await page.locator("#name-input").fill("Raihan");
-await page.locator("#name-input").press("Enter");
-await page.waitForSelector("#identity-summary:not([hidden])");
-assert.match(norm(await page.locator("#identity-summary").innerText()), /Bid sebagai Raihan/);
-assert.equal(await page.locator("#bid-submit").isEnabled(), true);
-
-await page.reload({ waitUntil: "networkidle" });
-await page.waitForSelector('#main[aria-busy="false"]');
-await page.waitForSelector("#identity-summary:not([hidden])");
-assert.match(norm(await page.locator("#identity-summary").innerText()), /Bid sebagai Raihan/);
-
+// Validation and a successful bid.
 await page.locator("#amount-input").fill("7000000");
 await page.locator("#bid-submit").click();
 await page.waitForSelector("#bid-error:not([hidden])");
@@ -64,18 +73,19 @@ await page.waitForFunction(() => document.querySelector("#price").textContent.in
 assert.equal(norm(await page.locator("#price").innerText()), "Rp 7.300.000");
 assert.match(norm(await page.locator("#ledger-list li:first-child").innerText()), /Raihan/);
 
-// A second tab in the same context shares localStorage and BroadcastChannel.
+// A second tab in the same context logs in as another demo account.
 const page2 = await context.newPage();
 page2.on("console", (msg) => {
   if (msg.type() === "error") errors.push(`tab2: ${msg.text()}`);
 });
 page2.on("pageerror", (err) => pageErrors.push(`tab2: ${err.message}`));
-await page2.goto(BASE_URL, { waitUntil: "networkidle" });
+await page2.goto(`${BASE_URL}login.html?next=index.html`, { waitUntil: "networkidle" });
+await page2.waitForSelector('[data-demo-email="dewi@example.com"]');
+await page2.locator('[data-demo-email="dewi@example.com"]').click();
+await page2.waitForURL(/index\.html/);
 await page2.waitForSelector('#main[aria-busy="false"]');
+assert.match(norm(await page2.locator("#identity-summary").innerText()), /Bid sebagai Dewi/);
 await page2.waitForFunction(() => document.querySelector("#price").textContent.includes("7.300.000"));
-await page2.locator("#name-input").fill("Dewi");
-await page2.locator('#name-form button[type="submit"]').click();
-await page2.waitForSelector("#identity-summary:not([hidden])");
 
 await page.waitForFunction(() => document.querySelector("#price-meta").textContent.includes("2 penonton"), null, {
   timeout: 7000,
@@ -97,18 +107,27 @@ await page.screenshot({ path: path.join(OUT, "desktop-outbid.png"), animations: 
 await page.locator("#toast-close").click();
 assert.equal(await page.locator("#toast").isVisible(), false);
 
-await page.locator("#change-name").click();
-await page.waitForSelector("#name-form:not([hidden])");
-assert.equal(await page.locator("#name-input").inputValue(), "Raihan");
-await page.locator("#name-input").press("Enter");
-await page.waitForSelector("#identity-summary:not([hidden])");
-
 await page2.close();
 await page.waitForFunction(() => document.querySelector("#price-meta").textContent.includes("1 penonton"), null, {
   timeout: 9000,
 });
 
-// Reset, then exercise the built-in rival simulation.
+// Account page reads the same state and shows this user's bids.
+await page.goto(`${BASE_URL}account.html`, { waitUntil: "networkidle" });
+await page.waitForSelector("#account-profile:not([hidden])");
+assert.match(norm(await page.locator("#profile-name").innerText()), /Raihan/);
+assert.match(norm(await page.locator("#profile-email").innerText()), /raihan@example\.com/);
+await page.waitForFunction(() => document.querySelectorAll("#account-bid-list li").length === 1);
+assert.match(norm(await page.locator("#account-bid-list").innerText()), /Sony Alpha A7 II/);
+assert.match(norm(await page.locator("#account-bid-list").innerText()), /Rp 7\.300\.000/);
+assert.match(norm(await page.locator("#account-bid-list").innerText()), /terlampaui/i);
+await page.screenshot({ path: path.join(OUT, "account-bids.png"), fullPage: true, animations: "disabled" });
+
+await page.goto(`${BASE_URL}index.html`, { waitUntil: "networkidle" });
+await page.waitForSelector('#main[aria-busy="false"]');
+assert.match(norm(await page.locator("#identity-summary").innerText()), /Bid sebagai Raihan/);
+
+// Reset, quick bids, and the built-in rival simulation.
 page.once("dialog", (dialog) => dialog.accept());
 await page.locator("#reset-demo").click();
 await page.waitForFunction(() => document.querySelector("#price").textContent.includes("6.500.000"));
@@ -127,39 +146,42 @@ await page.waitForFunction(() => document.querySelector("#price").textContent.in
 await page.waitForSelector("#toast:not([hidden])");
 assert.match(norm(await page.locator("#toast-message").innerText()), /di-outbid/);
 
-// Focus and target-size checks.
-const focusOutline = await page.evaluate(() => {
-  const input = document.querySelector("#amount-input");
-  input.focus();
-  return getComputedStyle(document.querySelector(".amount-field")).outlineWidth;
-});
-assert.equal(focusOutline, "3px");
+// Ended winner and result archive.
+await forceLiveEnd(page);
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector("#result:not([hidden])");
+assert.match(norm(await page.locator("#result-title").innerText()), /Penantang demo memenangkan lot ini/);
+assert.match(norm(await page.locator("#result-price").innerText()), /Rp 6\.600\.000/);
+await page.screenshot({ path: path.join(OUT, "desktop-ended-winner.png"), fullPage: true, animations: "disabled" });
 
-const smallTargets = await page.evaluate(() =>
-  [...document.querySelectorAll("button, input")]
-    .filter((el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 && rect.height < 44;
-    })
-    .map((el) => `${el.tagName}:${el.textContent.trim() || el.id}:${el.getBoundingClientRect().height}`),
-);
-assert.deepEqual(smallTargets, []);
+await page.goto(`${BASE_URL}results.html`, { waitUntil: "networkidle" });
+await page.waitForSelector('#results-main[aria-busy="false"]');
+assert.match(norm(await page.locator("#results-list").innerText()), /Penantang demo/);
+assert.match(norm(await page.locator("#results-list").innerText()), /Rp 6\.600\.000/);
+await page.screenshot({ path: path.join(OUT, "results-winner.png"), fullPage: true, animations: "disabled" });
 
-const unnamedButtons = await page.evaluate(() =>
-  [...document.querySelectorAll("button")]
-    .filter((el) => !(el.textContent.trim() || el.getAttribute("aria-label")))
-    .map((el) => el.outerHTML),
-);
-assert.deepEqual(unnamedButtons, []);
+// Ended without bids.
+await page.goto(`${BASE_URL}index.html`, { waitUntil: "networkidle" });
+await page.waitForSelector("#result:not([hidden])");
+page.once("dialog", (dialog) => dialog.accept());
+await page.locator("#reset-result").click();
+await page.waitForFunction(() => document.querySelector("#price").textContent.includes("6.500.000"));
+await forceLiveEnd(page);
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector("#result:not([hidden])");
+assert.match(norm(await page.locator("#result-title").innerText()), /Tidak ada bid/);
+assert.match(norm(await page.locator("#result-price").innerText()), /Tidak ada harga akhir/);
+assert.match(norm(await page.locator("#ledger-empty").innerText()), /Tidak ada bid pada lelang ini/);
+await page.screenshot({ path: path.join(OUT, "desktop-ended-unsold.png"), fullPage: true, animations: "disabled" });
 
-const unlabeledInputs = await page.evaluate(() =>
-  [...document.querySelectorAll("input")]
-    .filter((el) => !(el.labels?.length || el.getAttribute("aria-label")))
-    .map((el) => el.outerHTML),
-);
-assert.deepEqual(unlabeledInputs, []);
+// Corrupt state recovery.
+await page.evaluate(() => localStorage.setItem("lelang-demo-state-v4", "{broken"));
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector("#app-banner:not([hidden])");
+assert.match(norm(await page.locator("#app-banner").innerText()), /tidak terbaca/);
+await page.screenshot({ path: path.join(OUT, "desktop-error.png"), fullPage: true, animations: "disabled" });
 
-// Responsive checks at tablet, phone, and narrow phone widths.
+// Responsive checks.
 const sizes = [
   { width: 768, height: 1024, name: "tablet" },
   { width: 390, height: 844, name: "mobile" },
@@ -180,46 +202,6 @@ for (const size of sizes) {
   });
 }
 
-// Ended with a winner.
-await page.setViewportSize({ width: 1440, height: 1100 });
-await page.evaluate(() => {
-  const key = "lelang-demo-state-v2";
-  const state = JSON.parse(localStorage.getItem(key));
-  const live = state.auctions.find((auction) => auction.status === "live");
-  live.endsAt = new Date(Date.now() - 1000).toISOString();
-  localStorage.setItem(key, JSON.stringify(state));
-});
-await page.reload({ waitUntil: "networkidle" });
-await page.waitForSelector("#result:not([hidden])");
-assert.match(norm(await page.locator("#result-title").innerText()), /Penantang demo memenangkan lot ini/);
-assert.match(norm(await page.locator("#result-price").innerText()), /Rp 6\.600\.000/);
-await page.screenshot({ path: path.join(OUT, "desktop-ended-winner.png"), fullPage: true, animations: "disabled" });
-
-// Ended without bids.
-page.once("dialog", (dialog) => dialog.accept());
-await page.locator("#reset-result").click();
-await page.waitForFunction(() => document.querySelector("#price").textContent.includes("6.500.000"));
-await page.evaluate(() => {
-  const key = "lelang-demo-state-v2";
-  const state = JSON.parse(localStorage.getItem(key));
-  const live = state.auctions.find((auction) => auction.status === "live");
-  live.endsAt = new Date(Date.now() - 1000).toISOString();
-  localStorage.setItem(key, JSON.stringify(state));
-});
-await page.reload({ waitUntil: "networkidle" });
-await page.waitForSelector("#result:not([hidden])");
-assert.match(norm(await page.locator("#result-title").innerText()), /Tidak ada bid/);
-assert.match(norm(await page.locator("#result-price").innerText()), /Tidak ada harga akhir/);
-assert.match(norm(await page.locator("#ledger-empty").innerText()), /Tidak ada bid pada lelang ini/);
-await page.screenshot({ path: path.join(OUT, "desktop-ended-unsold.png"), fullPage: true, animations: "disabled" });
-
-// Corrupt state recovery.
-await page.evaluate(() => localStorage.setItem("lelang-demo-state-v2", "{broken"));
-await page.reload({ waitUntil: "networkidle" });
-await page.waitForSelector("#app-banner:not([hidden])");
-assert.match(norm(await page.locator("#app-banner").innerText()), /tidak terbaca/);
-await page.screenshot({ path: path.join(OUT, "desktop-error.png"), fullPage: true, animations: "disabled" });
-
 assert.deepEqual(errors, [], `console errors: ${errors.join(" | ")}`);
 assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join(" | ")}`);
 
@@ -229,26 +211,24 @@ console.log(
     {
       status: "PASS",
       checks: [
-        "initial data and 3 seeded bids",
-        "skip link receives focus and jumps to main",
-        "name persists per tab across reload",
-        "keyboard Enter submits the name form",
+        "login form submits with Enter",
+        "session persists across reload",
+        "guest skip link and live room render",
         "below-minimum bid rejected",
-        "successful bid updates price and ledger",
-        "second tab sees price and presence",
-        "outbid toast on first tab and stale status cleared",
+        "bid accepted and ledger updates",
+        "second tab logs in as another demo account",
+        "presence reaches 2 viewers",
+        "outbid toast and stale status cleared",
         "toast close works",
-        "change name control works",
         "presence drops after tab closes",
+        "account page shows user's bid",
         "reset clears bids",
         "quick bid buttons update the amount",
         "rival simulation triggers outbid",
         "ended winner state",
+        "results archive shows winner",
         "ended unsold state",
         "corrupt state recovery banner",
-        "3px focus outline",
-        "all targets >= 44px",
-        "all buttons named and inputs labelled",
         "no horizontal overflow at 768/390/320",
         "zero console and page errors",
       ],

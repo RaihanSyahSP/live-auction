@@ -1,3 +1,5 @@
+import { getSession, loginDemo } from "./auth.js";
+import { mountAuthLinks } from "./auth-ui.js";
 import {
   MAX_AMOUNT,
   connectStateChannel,
@@ -18,6 +20,11 @@ import {
 const refs = {
   main: document.getElementById("admin-main"),
   banner: document.getElementById("admin-banner"),
+  gate: document.getElementById("admin-gate"),
+  gateMessage: document.getElementById("gate-message"),
+  adminDemoLogin: document.getElementById("admin-demo-login"),
+  boot: document.getElementById("admin-boot"),
+  footer: document.getElementById("admin-footer"),
   summary: document.getElementById("admin-summary"),
   loading: document.getElementById("admin-loading"),
   list: document.getElementById("admin-list"),
@@ -28,6 +35,7 @@ const refs = {
   description: document.getElementById("auction-description"),
   condition: document.getElementById("auction-condition"),
   includes: document.getElementById("auction-includes"),
+  specs: document.getElementById("auction-specs"),
   startingPrice: document.getElementById("starting-price"),
   minIncrement: document.getElementById("min-increment"),
   duration: document.getElementById("duration"),
@@ -333,6 +341,7 @@ function setupEvents() {
       description: refs.description.value,
       condition: refs.condition.value,
       includes: refs.includes.value,
+      specs: refs.specs.value,
       startingPrice,
       minIncrement,
       durationMinutes,
@@ -382,6 +391,36 @@ async function tick() {
 }
 
 async function init() {
+  mountAuthLinks(document.getElementById("auth-links"), {
+    logoutTarget: "index.html",
+  });
+
+  refs.adminDemoLogin.addEventListener("click", () => {
+    const result = loginDemo("admin@example.com");
+    if (!result.ok) {
+      refs.gateMessage.textContent = result.error;
+      return;
+    }
+    window.location.reload();
+  });
+
+  const session = getSession();
+  if (!session || session.role !== "admin") {
+    refs.boot.hidden = true;
+    refs.gate.hidden = false;
+    refs.main.hidden = true;
+    refs.footer.hidden = true;
+    refs.gateMessage.textContent = session
+      ? `Kamu masuk sebagai ${session.name} dengan akun pembeli. Akun ini tidak punya akses admin.`
+      : "Halaman ini memerlukan akun admin. Pakai akun demo di bawah untuk mencoba.";
+    return;
+  }
+
+  refs.gate.hidden = true;
+  refs.boot.hidden = true;
+  refs.main.hidden = false;
+  refs.footer.hidden = false;
+
   setupEvents();
   refs.duration.value = "10";
   connectStateChannel({ onState: applyState });
@@ -390,7 +429,7 @@ async function init() {
   try {
     loaded = await initState();
   } catch {
-    currentState = { version: 2, auctions: [] };
+    currentState = { version: 4, auctions: [] };
     showBanner("Sesi demo tidak bisa dimuat. Muat ulang halaman untuk mencoba lagi.");
     loaded = { state: currentState, recovered: false };
   }

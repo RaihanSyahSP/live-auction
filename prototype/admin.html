@@ -21,16 +21,37 @@
         <div class="masthead-meta">
           <p class="lot-id">ADMIN DEMO</p>
           <a class="text-link" href="index.html">Buka ruang lelang</a>
+          <div class="auth-links" id="auth-links"></div>
         </div>
       </header>
 
       <p class="banner banner-static">
-        Mode demo admin. Tidak ada autentikasi. Jangan dipakai untuk data nyata.
+        Mode demo admin dengan akun lokal. Jangan dipakai untuk data nyata.
         Semua perubahan tersimpan di browser ini dan tersinkron ke tab lain.
       </p>
       <div class="banner" id="admin-banner" role="alert" hidden></div>
 
-      <main id="admin-main" class="admin-layout" aria-busy="true">
+      <section class="gate" id="admin-gate" hidden>
+        <p class="kicker">Akses admin</p>
+        <h1>Butuh akun admin</h1>
+        <p id="gate-message">Halaman ini hanya untuk admin.</p>
+        <div class="gate-actions">
+          <button type="button" class="button button-primary" id="admin-demo-login">
+            Masuk sebagai admin demo
+          </button>
+          <a class="button button-secondary" id="gate-login" href="login.html?next=admin.html">
+            Ke halaman login
+          </a>
+          <a class="button button-secondary" href="index.html">Buka ruang</a>
+        </div>
+        <p class="field-help">
+          Prototipe memakai akun demo lokal. Autentikasi produksi baru ada setelah backend dibuat.
+        </p>
+      </section>
+
+      <p class="admin-loading" id="admin-boot">Memeriksa akses...</p>
+
+      <main id="admin-main" class="admin-layout" aria-busy="true" hidden>
         <section class="admin-section" aria-labelledby="auction-list-title">
           <div class="admin-head">
             <div>
@@ -79,6 +100,10 @@
               <input id="auction-includes" name="includes" type="text" maxlength="160" placeholder="Body, baterai, charger" autocomplete="off">
               <p class="field-help">Pisahkan dengan koma.</p>
 
+              <label for="auction-specs">Spesifikasi</label>
+              <textarea id="auction-specs" name="specs" rows="3" placeholder="Sensor: Full-frame 24 MP&#10;Mount: Sony E-mount"></textarea>
+              <p class="field-help">Satu baris per spesifikasi, format Label: Nilai.</p>
+
               <div class="form-grid">
                 <div>
                   <label for="starting-price">Harga awal</label>
@@ -111,9 +136,9 @@
         </section>
       </main>
 
-      <footer class="footer">
+      <footer class="footer" id="admin-footer" hidden>
         <div class="footer-copy">
-          <p>Prototipe admin. Tidak ada autentikasi, pembayaran, atau pengiriman.</p>
+          <p>Prototipe admin dengan akun lokal. Tidak ada autentikasi produksi, pembayaran, atau pengiriman.</p>
           <p class="footer-rule">
             Start, end, dan bid langsung memengaruhi ruang lelang di tab lain.
           </p>

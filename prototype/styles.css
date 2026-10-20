@@ -485,10 +485,7 @@ h1 {
 }
 
 .admin-form-section {
-  position: sticky;
-  top: 24px;
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
+  min-width: 0;
 }
 
 .admin-form-panel {
@@ -550,6 +547,398 @@ h1 {
 
 .admin-form .button-primary {
   margin-top: 18px;
+}
+
+.auth-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.auth-links .text-link,
+.auth-links .text-button {
+  font-size: 0.8rem;
+}
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  align-items: start;
+  gap: var(--gap);
+  max-width: 980px;
+  margin-inline: auto;
+  padding: clamp(28px, 5vw, 56px) 0;
+}
+
+.auth-panel {
+  padding: clamp(22px, 4vw, 40px);
+  border: 1px solid var(--ink);
+  background: var(--surface);
+}
+
+.auth-panel h1,
+.account-profile h1,
+.results-head h1,
+.gate h1 {
+  max-width: none;
+  font-size: clamp(2.3rem, 5vw, 3.6rem);
+  line-height: 1;
+}
+
+.auth-intro {
+  max-width: 52ch;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.auth-form {
+  margin-top: 24px;
+}
+
+.auth-form label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.auth-form .button-primary {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.auth-switch {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.auth-side {
+  padding-top: 4px;
+}
+
+.auth-side h2 {
+  margin-top: 4px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.8rem;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.demo-accounts {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.demo-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.demo-account small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.demo-account:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.demo-account:hover small {
+  color: var(--paper);
+}
+
+.demo-account:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.auth-note {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-soft);
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.auth-list {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.session-panel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-size: 0.9rem;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.auth-actions .button {
+  min-height: 44px;
+  font-size: 0.85rem;
+}
+
+.gate {
+  max-width: 720px;
+  margin: 48px auto 0;
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid var(--ink);
+  background: var(--surface);
+}
+
+.gate h1 {
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
+
+.gate p {
+  max-width: 56ch;
+  color: var(--muted);
+}
+
+.gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+  margin-bottom: 14px;
+}
+
+.gate-actions .button {
+  min-height: 44px;
+  font-size: 0.85rem;
+}
+
+.account-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  align-items: start;
+  gap: var(--gap);
+  padding: clamp(28px, 5vw, 56px) 0;
+}
+
+.account-profile {
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid var(--ink);
+  background: var(--surface);
+}
+
+.account-profile h1 {
+  margin-top: 4px;
+}
+
+.profile-meta {
+  margin-top: 20px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.profile-meta div {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.profile-meta dt {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.profile-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.account-bids {
+  min-width: 0;
+}
+
+.account-bids-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.account-bids-head h2 {
+  margin-top: 2px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.7rem;
+  font-weight: 400;
+}
+
+.account-bid-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-bid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.account-bid-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.account-bid-title a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+}
+
+.account-bid-title a:hover {
+  color: var(--accent);
+}
+
+.account-bid-meta {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bid-state {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: right;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bid-state.is-leading {
+  color: var(--accent);
+}
+
+.bid-state.is-won {
+  color: var(--ink);
+}
+
+.bid-state.is-outbid {
+  color: var(--muted);
+}
+
+.results {
+  padding: clamp(28px, 5vw, 56px) 0;
+}
+
+.results-head {
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.results-head h1 {
+  margin-top: 4px;
+}
+
+.results-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.result-card {
+  padding: 18px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.result-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.result-card-title {
+  margin-top: 10px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.55rem;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.result-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.result-meta dt {
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.result-meta dd {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+}
+
+.results-empty {
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.results-empty p {
+  margin-bottom: 8px;
 }
 
 .auction {
@@ -675,10 +1064,6 @@ h1 {
 
 .text-button:hover {
   color: var(--accent);
-}
-
-.name-form {
-  margin-top: 8px;
 }
 
 .inline-form {
@@ -1063,7 +1448,9 @@ input:focus-visible {
 @media (max-width: 960px) {
   .lot-sheet,
   .auction,
-  .admin-layout {
+  .admin-layout,
+  .auth-layout,
+  .account-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1151,6 +1538,41 @@ input:focus-visible {
 
   .form-grid > div:last-child {
     grid-column: auto;
+  }
+
+  .auth-links {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .auth-actions .button {
+    flex: 1 1 140px;
+  }
+
+  .gate-actions .button {
+    width: 100%;
+  }
+
+  .auth-panel,
+  .gate,
+  .account-profile {
+    padding: 20px;
+  }
+
+  .result-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .result-card {
+    padding: 14px;
+  }
+
+  .account-bid {
+    grid-template-columns: 1fr;
+  }
+
+  .bid-state {
+    text-align: left;
   }
 
   .toast {

@@ -19,12 +19,13 @@
           <p class="wordmark-note">Prototipe ruang lelang</p>
         </div>
         <div class="masthead-meta">
-          <p class="lot-id">LOT 001</p>
+          <p class="lot-id" id="header-lot">LOT 001</p>
           <p class="live-state" id="live-state">
             <span class="live-mark" aria-hidden="true"></span>
             <span id="live-label">LIVE</span>
           </p>
           <p class="demo-tag">Data demo</p>
+          <div class="auth-links" id="auth-links"></div>
         </div>
       </header>
 
@@ -40,7 +41,7 @@
         <section class="lot-sheet" id="lot-sheet" aria-labelledby="lot-title">
           <div class="lot-visual">
             <figure class="image-frame">
-              <span class="image-stamp">LOT 001</span>
+              <span class="image-stamp" id="image-lot">LOT 001</span>
               <svg viewBox="0 0 640 420" aria-hidden="true" focusable="false">
                 <rect x="96" y="128" width="448" height="216" rx="10"></rect>
                 <path d="M150 128 L178 88 H268 L296 128"></path>
@@ -54,20 +55,20 @@
               <figcaption>Foto unit belum tersedia. Prototipe memakai ilustrasi.</figcaption>
             </figure>
             <div class="lot-facts">
-              <p><span class="fact-label">Kondisi</span> Used, 8/10</p>
-              <p><span class="fact-label">Kelengkapan</span> Body, baterai, charger, tutup body</p>
+              <p><span class="fact-label">Kondisi</span> <span id="lot-condition">Used, 8/10</span></p>
+              <p><span class="fact-label">Kelengkapan</span> <span id="lot-includes">Body, baterai, charger, tutup body</span></p>
             </div>
           </div>
 
           <div class="lot-copy">
-            <p class="kicker">Elektronik bekas / Kamera mirrorless</p>
-            <h1 id="lot-title">Sony Alpha A7 II <span class="title-sub">Body only</span></h1>
-            <p class="lot-description">
+            <p class="kicker">Elektronik bekas</p>
+            <h1 id="lot-title"><span id="lot-title-main">Sony Alpha A7 II</span> <span class="title-sub" id="lot-subtitle">Body only</span></h1>
+            <p class="lot-description" id="lot-description">
               Kamera full-frame 24 MP dengan stabilisasi 5-axis. Body saja, tanpa lensa.
               Dial dan tombol responsif, layar belakang punya baret halus. Baterai masih
               menyala normal.
             </p>
-            <dl class="spec-list">
+            <dl class="spec-list" id="lot-specs">
               <div><dt>Sensor</dt><dd>Full-frame 24 MP</dd></div>
               <div><dt>Mount</dt><dd>Sony E-mount</dd></div>
               <div><dt>Stabilisasi</dt><dd>5-axis in-body</dd></div>
@@ -103,17 +104,16 @@
               <p class="label">Identitas penawar</p>
               <div id="identity-summary" hidden>
                 <p class="identity-line">Bid sebagai <strong id="identity-name"></strong></p>
-                <button type="button" class="text-button" id="change-name">Ganti nama</button>
+                <a class="text-link" href="account.html">Akun saya</a>
               </div>
-              <form id="name-form" class="name-form" novalidate>
-                <label for="name-input">Nama di ledger</label>
+              <div id="identity-guest" hidden>
+                <p class="identity-line">Masuk untuk memasang bid.</p>
                 <div class="inline-form">
-                  <input id="name-input" name="name" type="text" maxlength="40" autocomplete="nickname" placeholder="Misalnya: Raihan" aria-describedby="name-help name-error">
-                  <button type="submit" class="button button-secondary">Simpan nama</button>
+                  <a class="button button-secondary" id="login-link" href="login.html">Masuk</a>
+                  <a class="button button-secondary" id="register-link" href="register.html">Daftar</a>
                 </div>
-                <p class="field-help" id="name-help">Nama disimpan per tab. Buka tab lain dengan nama berbeda untuk mencoba alur bid.</p>
-                <p class="field-error" id="name-error" role="alert" hidden></p>
-              </form>
+                <p class="field-help">Guest tetap bisa menonton harga dan riwayat bid.</p>
+              </div>
             </div>
 
             <form id="bid-form" class="bid-form" novalidate>
@@ -127,7 +127,7 @@
                 Kelipatan <span id="increment">Rp 100.000</span>.
               </p>
               <div class="quick-bids" id="quick-bids" aria-label="Pilihan bid cepat"></div>
-              <button type="submit" class="button button-primary" id="bid-submit">Pasang bid Rp 7.300.000</button>
+              <button type="submit" class="button button-primary" id="bid-submit">Pasang bid</button>
               <p class="field-error" id="bid-error" role="alert" hidden></p>
               <p class="bid-status" id="bid-status" role="status" aria-live="polite" hidden></p>
             </form>
@@ -173,6 +173,7 @@
         <div class="demo-controls">
           <p class="label">Kontrol demo</p>
           <div class="demo-buttons">
+            <a class="button button-secondary" href="results.html">Hasil lelang</a>
             <a class="button button-secondary" href="admin.html">Admin demo</a>
             <button type="button" class="button button-secondary" id="simulate-rival">Simulasi penantang</button>
             <button type="button" class="button button-secondary" id="reset-demo">Reset demo</button>

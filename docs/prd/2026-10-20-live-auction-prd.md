@@ -157,7 +157,7 @@ Prioritas memakai Must, Should, Could, dan Won't untuk versi pertama.
 ### 9.3 Admin menjalankan lelang
 
 1. Admin login dengan akun admin.
-2. Admin membuat draft: judul, subjudul, deskripsi, kondisi, kelengkapan, gambar, harga awal, kelipatan, dan durasi.
+2. Admin membuat draft: judul, subjudul, deskripsi, kondisi, kelengkapan, spesifikasi, gambar, harga awal, kelipatan, dan durasi.
 3. Admin membuka preview untuk memeriksa tampilan.
 4. Admin memulai lelang. Draft menjadi live dan timer berjalan.
 5. Admin memantau harga dan jumlah bid dari daftar lelang.
@@ -196,7 +196,7 @@ Kriteria penerimaan:
 ### 10.2 Ruang lelang
 
 - Halaman lelang dapat dibuka tanpa login.
-- Informasi yang ditampilkan: judul, subjudul, deskripsi, kondisi, kelengkapan, gambar, harga awal, kelipatan, harga saat ini, bidder tertinggi, riwayat bid, jumlah penonton, status, dan sisa waktu.
+- Informasi yang ditampilkan: judul, subjudul, deskripsi, kondisi, kelengkapan, spesifikasi, gambar, harga awal, kelipatan, harga saat ini, bidder tertinggi, riwayat bid, jumlah penonton, status, dan sisa waktu.
 - Countdown mengacu pada waktu server, bukan jam perangkat.
 - Riwayat bid menampilkan 50 bid terbaru, dengan opsi memuat lebih lama.
 - Halaman memiliki state loading, empty, error, live, ended, dan unsold.
@@ -427,11 +427,12 @@ Event ini baru dikirim setelah backend ada. Prototype tidak mengirim analitik.
 
 Status: selesai.
 
-- Ruang lelang dan admin berjalan sebagai halaman statis.
+- Ruang lelang, login, daftar, akun, hasil lelang, dan admin berjalan sebagai halaman statis.
 - State disinkronkan antar tab lewat BroadcastChannel dan localStorage.
 - Bid, anti-sniping, lifecycle, outbid, presence, dan reset disimulasikan.
-- Admin dapat create, preview, start, end, delete, dan reset.
-- Belum ada backend, database, autentikasi, atau WebSocket.
+- Auth demo berjalan di browser dengan role pembeli dan admin. Sesi disimpan per tab.
+- Admin dapat create, preview, start, end, delete, dan reset. Halaman admin memakai gate akun demo.
+- Belum ada backend, database, autentikasi produksi, atau WebSocket.
 
 ### Fase 1: MVP backend
 
@@ -493,7 +494,7 @@ Fitur di fase ini tidak boleh menunda MVP.
 | Client kehilangan event saat putus | Harga tertinggal | Snapshot saat reconnect, sequence dan epoch |
 | Server restart saat lelang live | Timer berhenti | Muat ulang lelang live dari database saat boot |
 | Scope melebar ke marketplace | Proyek tidak selesai | Non-tujuan dan prioritas fitur |
-| Admin tanpa autentikasi di prototype | Penyalahgunaan | Label demo, auth wajib di MVP |
+| Auth demo menyimpan akun di localStorage | Penyalahgunaan data | Label demo, auth produksi wajib di MVP |
 | Tidak ada pembayaran | Pemenang harus ditindaklanjuti manual | Nyatakan transaksi selesai di hasil lelang, settlement di luar aplikasi |
 | MVP memakai satu instance dan satu lelang live | Belum ada scaling horizontal | Terima batas MVP, siapkan Redis pub/sub sebagai langkah berikutnya |
 | Data pribadi di log | Kebocoran | Redaksi email, token, dan password |
@@ -544,12 +545,14 @@ Keputusan yang sudah diambil:
 | Ruang lelang | UI dan alur lokal berfungsi |
 | Bid dan validasi | Simulasi di browser |
 | Anti-sniping | Simulasi di browser |
-| Admin | Lokal, tanpa autentikasi |
+| Admin | Lokal dengan gate admin demo |
+| Auth dan role | Demo lokal: login, daftar, sesi per tab, role user/admin |
+| Halaman akun dan hasil lelang | Ada, membaca state yang sama |
 | Sinkronisasi | BroadcastChannel dan localStorage |
 | Backend, database, WebSocket | Belum dibuat |
-| Auth dan role | Belum dibuat |
+| Auth produksi | Belum. Demo menyimpan akun di localStorage |
 | Metrics dan load test | Belum dibuat |
-| Verifikasi prototype | 22 cek ruang lelang dan 15 cek admin PASS, tanpa console error |
+| Verifikasi prototype | 20 cek ruang lelang, 19 cek admin, dan 14 cek auth PASS, tanpa console error |
 | Pembayaran dan ongkir | Di luar scope |
 
 Prototipe ini dipakai untuk menguji urutan layar, kejelasan aturan, dan perilaku state. Prototipe bukan bukti keamanan, skalabilitas, atau kesiapan produksi.

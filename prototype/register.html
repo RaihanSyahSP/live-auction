@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Daftar: Lelang</title>
+    <meta name="description" content="Buat akun untuk prototipe ruang lelang elektronik bekas.">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="register.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#auth-main">Lewati ke konten</a>
+
+    <div class="page">
+      <header class="masthead">
+        <div class="masthead-brand">
+          <p class="wordmark">LELANG</p>
+          <p class="wordmark-note">Buat akun pembeli</p>
+        </div>
+        <div class="masthead-meta">
+          <p class="lot-id">DEMO AUTH</p>
+          <a class="text-link" href="index.html">Kembali ke ruang</a>
+        </div>
+      </header>
+
+      <p class="banner banner-static">
+        Autentikasi demo. Akun hanya tersimpan di browser ini. Jangan memakai
+        password asli atau data pribadi.
+      </p>
+
+      <main id="auth-main" class="auth-layout">
+        <section class="auth-panel" aria-labelledby="register-title">
+          <p class="kicker">Akun baru</p>
+          <h1 id="register-title">Daftar</h1>
+          <p class="auth-intro">
+            Akun baru otomatis masuk dengan role pembeli. Kamu bisa langsung bid
+            setelah sampai di ruang lelang.
+          </p>
+
+          <div class="session-panel" id="session-panel" hidden>
+            <p>
+              Kamu sudah masuk sebagai <strong id="session-name"></strong>.
+            </p>
+            <div class="auth-actions">
+              <a class="button button-primary" id="continue-link" href="index.html">Lanjut</a>
+              <button type="button" class="button button-secondary" id="logout-current">
+                Keluar
+              </button>
+            </div>
+          </div>
+
+          <form id="register-form" class="auth-form" novalidate>
+            <label for="name">Nama tampilan</label>
+            <input id="name" name="name" type="text" maxlength="40" autocomplete="nickname" placeholder="Misalnya: Raihan">
+
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" placeholder="nama@contoh.com">
+
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" placeholder="Minimal 6 karakter">
+
+            <label for="confirm-password">Ulangi password</label>
+            <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Ketik ulang password">
+
+            <p class="field-help">Nama tampil di riwayat bid. Email tidak ditampilkan publik.</p>
+            <p class="field-error" id="register-error" role="alert" hidden></p>
+            <button type="submit" class="button button-primary" id="register-submit">
+              Buat akun
+            </button>
+          </form>
+
+          <p class="auth-switch">
+            Sudah punya akun?
+            <a class="text-link" id="login-link" href="login.html">Masuk</a>
+          </p>
+        </section>
+
+        <aside class="auth-side" aria-labelledby="register-side-title">
+          <p class="kicker">Setelah daftar</p>
+          <h2 id="register-side-title">Langsung bisa bid</h2>
+          <p class="field-help">
+            Akun baru memakai role pembeli. Admin tidak dibuat lewat halaman ini.
+          </p>
+          <ul class="auth-list">
+            <li>Nama tampil di ledger lelang.</li>
+            <li>Email hanya dipakai untuk masuk.</li>
+            <li>Bid pertama langsung tersimpan setelah kamu memasangnya.</li>
+          </ul>
+          <p class="auth-note">
+            Ingin melihat sisi admin tanpa mendaftar? Gunakan akun demo admin di
+            halaman masuk.
+          </p>
+        </aside>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-copy">
+          <p>Prototipe alur akun. Tidak ada data yang dikirim ke server.</p>
+        </div>
+        <div class="demo-controls">
+          <a class="text-link" id="login-footer" href="login.html">Sudah punya akun? Masuk</a>
+        </div>
+      </footer>
+    </div>
+
+    <noscript><p class="noscript">Halaman daftar ini memerlukan JavaScript.</p></noscript>
+  </body>
+</html>
