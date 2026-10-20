@@ -183,9 +183,11 @@ for (const size of sizes) {
 // Ended with a winner.
 await page.setViewportSize({ width: 1440, height: 1100 });
 await page.evaluate(() => {
-  const state = JSON.parse(localStorage.getItem("lelang-demo-state-v1"));
-  state.auction.endsAt = new Date(Date.now() - 1000).toISOString();
-  localStorage.setItem("lelang-demo-state-v1", JSON.stringify(state));
+  const key = "lelang-demo-state-v2";
+  const state = JSON.parse(localStorage.getItem(key));
+  const live = state.auctions.find((auction) => auction.status === "live");
+  live.endsAt = new Date(Date.now() - 1000).toISOString();
+  localStorage.setItem(key, JSON.stringify(state));
 });
 await page.reload({ waitUntil: "networkidle" });
 await page.waitForSelector("#result:not([hidden])");
@@ -198,9 +200,11 @@ page.once("dialog", (dialog) => dialog.accept());
 await page.locator("#reset-result").click();
 await page.waitForFunction(() => document.querySelector("#price").textContent.includes("6.500.000"));
 await page.evaluate(() => {
-  const state = JSON.parse(localStorage.getItem("lelang-demo-state-v1"));
-  state.auction.endsAt = new Date(Date.now() - 1000).toISOString();
-  localStorage.setItem("lelang-demo-state-v1", JSON.stringify(state));
+  const key = "lelang-demo-state-v2";
+  const state = JSON.parse(localStorage.getItem(key));
+  const live = state.auctions.find((auction) => auction.status === "live");
+  live.endsAt = new Date(Date.now() - 1000).toISOString();
+  localStorage.setItem(key, JSON.stringify(state));
 });
 await page.reload({ waitUntil: "networkidle" });
 await page.waitForSelector("#result:not([hidden])");
@@ -210,7 +214,7 @@ assert.match(norm(await page.locator("#ledger-empty").innerText()), /Tidak ada b
 await page.screenshot({ path: path.join(OUT, "desktop-ended-unsold.png"), fullPage: true, animations: "disabled" });
 
 // Corrupt state recovery.
-await page.evaluate(() => localStorage.setItem("lelang-demo-state-v1", "{broken"));
+await page.evaluate(() => localStorage.setItem("lelang-demo-state-v2", "{broken"));
 await page.reload({ waitUntil: "networkidle" });
 await page.waitForSelector("#app-banner:not([hidden])");
 assert.match(norm(await page.locator("#app-banner").innerText()), /tidak terbaca/);

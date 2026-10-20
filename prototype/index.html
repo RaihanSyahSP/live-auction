@@ -7,7 +7,7 @@
     <meta name="description" content="Prototipe ruang lelang real-time untuk elektronik bekas.">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="styles.css">
-    <script src="app.js" defer></script>
+    <script type="module" src="app.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Lewati ke konten</a>
@@ -31,7 +31,13 @@
       <div class="banner" id="app-banner" role="alert" hidden></div>
 
       <main id="main" aria-busy="true">
-        <section class="lot-sheet" aria-labelledby="lot-title">
+        <section class="no-auction" id="no-auction" hidden>
+          <h1>Belum ada lelang</h1>
+          <p>Buat draft pertama di halaman admin demo, lalu mulai lelangnya.</p>
+          <a class="button button-secondary" href="admin.html">Buka admin</a>
+        </section>
+
+        <section class="lot-sheet" id="lot-sheet" aria-labelledby="lot-title">
           <div class="lot-visual">
             <figure class="image-frame">
               <span class="image-stamp">LOT 001</span>
@@ -74,7 +80,7 @@
           </div>
         </section>
 
-        <section class="auction" aria-labelledby="auction-heading">
+        <section class="auction" id="auction-section" aria-labelledby="auction-heading">
           <h2 class="sr-only" id="auction-heading">Ruang bid</h2>
 
           <div class="bid-panel">
@@ -126,6 +132,11 @@
               <p class="bid-status" id="bid-status" role="status" aria-live="polite" hidden></p>
             </form>
 
+            <div class="preview-note" id="preview-note" hidden>
+              <p><strong>Preview draft.</strong> Lelang belum dimulai. Bid dinonaktifkan sampai admin memulai lelang.</p>
+              <a class="text-link" href="admin.html">Buka admin</a>
+            </div>
+
             <div class="result" id="result" hidden>
               <p class="label">Hasil lelang</p>
               <p class="result-title" id="result-title"></p>
@@ -162,8 +173,9 @@
         <div class="demo-controls">
           <p class="label">Kontrol demo</p>
           <div class="demo-buttons">
+            <a class="button button-secondary" href="admin.html">Admin demo</a>
             <button type="button" class="button button-secondary" id="simulate-rival">Simulasi penantang</button>
-            <button type="button" class="button button-secondary" id="reset-demo">Reset lelang</button>
+            <button type="button" class="button button-secondary" id="reset-demo">Reset demo</button>
           </div>
         </div>
       </footer>

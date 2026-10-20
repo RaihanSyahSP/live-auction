@@ -2,7 +2,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node browser-check.mjs"
+    "test": "node browser-check.mjs && node admin-check.mjs",
+    "test:room": "node browser-check.mjs",
+    "test:admin": "node admin-check.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

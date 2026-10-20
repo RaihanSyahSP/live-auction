@@ -1,10 +1,12 @@
 # Lelang
 
-Prototipe UI ruang lelang real-time untuk elektronik bekas. Fokus tahap ini: alur bid, harga berjalan, ledger, presence, dan state lelang. Backend Go dan PostgreSQL menyusul sesuai spec.
+Prototipe UI ruang lelang real-time untuk elektronik bekas, lengkap dengan halaman admin demo. Fokus tahap ini: alur bid, harga berjalan, ledger, presence, lifecycle lelang, dan sinkronisasi antara ruang lelang dan admin. Backend Go dan PostgreSQL menyusul sesuai spec.
 
 ## Isi repo
 
 - `prototype/`: prototipe statis HTML, CSS, JavaScript. Tanpa build step.
+- `prototype/index.html`: ruang lelang.
+- `prototype/admin.html`: halaman admin demo.
 - `DESIGN.md`: arah visual, palet, tipografi, dan aturan desain.
 - `docs/superpowers/specs/2026-10-20-live-auction-design.md`: desain produk dan teknis untuk implementasi berikutnya.
 
@@ -33,6 +35,20 @@ npx serve prototype -l 4173
 
 Data disinkronkan lewat `BroadcastChannel` dan `localStorage`. Sinkronisasi hanya berlaku antar tab di browser dan origin yang sama. Tidak ada server.
 
+## Coba alur admin
+
+Buka `http://localhost:4173/admin.html` atau klik "Admin demo" di footer ruang lelang.
+
+1. Halaman admin menampilkan satu lelang live dan satu draft.
+2. End lelang live, lalu Start draft. Hanya satu lelang yang boleh live.
+3. Buka draft lewat Preview sebelum dimulai. Bid dinonaktifkan selama masih draft.
+4. Setelah Start, buka ruang lewat "Buka ruang", lalu pasang bid. Harga dan jumlah bid di admin ikut berubah.
+5. End lelang dari admin. Ruang lelang menampilkan pemenang dan harga akhir.
+6. Buat draft baru lewat form, lalu hapus draft jika perlu.
+7. "Reset semua demo" mengembalikan data awal.
+
+Admin di prototipe ini tidak memakai autentikasi. Ini disengaja dan diberi label di halaman. Autentikasi dan otorisasi baru masuk saat backend dibuat.
+
 ## Yang berfungsi
 
 - Bid dengan validasi minimum dan kelipatan.
@@ -42,16 +58,19 @@ Data disinkronkan lewat `BroadcastChannel` dan `localStorage`. Sinkronisasi hany
 - Anti-sniping: bid di 60 detik terakhir memperpanjang sesi 60 detik, maksimal 5 kali.
 - Lelang berakhir otomatis setelah 10 menit.
 - Hasil pemenang, harga akhir, dan state tidak terjual.
+- Admin membuat draft, preview, start, end, dan hapus draft.
+- Hanya satu lelang live pada satu waktu.
+- Harga dan jumlah bid di admin ikut berubah saat ada bid dari ruang lelang.
 - Reset demo dan simulasi penantang.
 - State kosong, loading, error, dan pemulihan state rusak.
 - Fokus keyboard terlihat, target sentuh minimal 44px, dan layout 320px sampai desktop.
 
 ## Yang belum ada
 
-- Backend, database, autentikasi, dan otorisasi.
-- Pembayaran, ongkir, dan pembuatan lelang oleh admin.
-- Upload foto. Halaman memakai ilustrasi dan label "Foto unit belum tersedia".
-- Rate limit dan idempotency di server.
+- Backend, database, autentikasi, dan otorisasi admin.
+- Aturan "admin tidak boleh bid" belum bisa ditegakkan tanpa akun nyata.
+- Pembayaran, ongkir, dan upload foto. Halaman memakai ilustrasi dan label "Foto unit belum tersedia".
+- Rate limit, idempotency, dan audit trail di server.
 
 Semua data di halaman adalah data demo dan diberi label "Data demo".
 
@@ -71,7 +90,7 @@ Jika memakai Edge:
 $env:PW_CHANNEL="msedge"; npm test
 ```
 
-Cek mencakup dua tab, bid valid dan tidak valid, outbid, presence, reset, simulasi penantang, state ended dan unsold, pemulihan state rusak, fokus, ukuran target, label input, dan overflow di 320px, 390px, serta 768px. Screenshot tersimpan di `prototype/tests/shots/` dan tidak di-commit.
+Cek mencakup dua tab, bid valid dan tidak valid, outbid, presence, reset, simulasi penantang, state ended dan unsold, pemulihan state rusak, fokus, ukuran target, label input, dan overflow di 320px, 390px, serta 768px. Cek admin mencakup create, preview, start, end, delete, sinkronisasi harga dan pemenang dengan ruang lelang, validasi form, serta reset. Screenshot tersimpan di `prototype/tests/shots/` dan tidak di-commit.
 
 Hasil terakhir: PASS, tanpa error console atau page error.
 

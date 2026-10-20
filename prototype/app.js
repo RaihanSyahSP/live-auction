@@ -1,32 +1,41 @@
-const STORAGE_KEY = "lelang-demo-state-v1";
-const NAME_KEY = "lelang-demo-name";
-const CHANNEL_NAME = "lelang-demo-channel";
-const DEMO_DURATION_MS = 10 * 60 * 1000;
-const ANTI_SNIPE_MS = 60 * 1000;
-const MAX_EXTENSIONS = 5;
-const MAX_AMOUNT = 1_000_000_000_000;
-const LOCK_NAME = "lelang-demo-lock";
+import {
+  MAX_AMOUNT,
+  MAX_EXTENSIONS,
+  NAME_KEY,
+  TAB_ID,
+  broadcast,
+  connectStateChannel,
+  endAuctionById,
+  findAuction,
+  getLiveAuction,
+  getMinimum,
+  idr,
+  initState,
+  isChannelAvailable,
+  isStorageAvailable,
+  numberFormat,
+  placeBid,
+  resetDemo,
+} from "./store.js";
 
-const TAB_ID =
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `tab-${Math.random().toString(36).slice(2)}`;
-
-const idr = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0,
-});
-const numberFormat = new Intl.NumberFormat("id-ID");
-const timeFormat = new Intl.DateTimeFormat("id-ID", {
+const ledgerTimeFormat = new Intl.DateTimeFormat("id-ID", {
   hour: "2-digit",
   minute: "2-digit",
   second: "2-digit",
 });
 
+const requestedAuctionId = (() => {
+  const raw = new URLSearchParams(window.location.search).get("auction");
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : null;
+})();
+
 const refs = {
   main: document.getElementById("main"),
   banner: document.getElementById("app-banner"),
+  lotSheet: document.getElementById("lot-sheet"),
+  auctionSection: document.getElementById("auction-section"),
+  noAuction: document.getElementById("no-auction"),
   liveState: document.getElementById("live-state"),
   liveLabel: document.getElementById("live-label"),
   priceLabel: document.getElementById("price-label"),
@@ -49,6 +58,7 @@ const refs = {
   bidSubmit: document.getElementById("bid-submit"),
   bidError: document.getElementById("bid-error"),
   bidStatus: document.getElementById("bid-status"),
+  previewNote: document.getElementById("preview-note"),
   result: document.getElementById("result"),
   resultTitle: document.getElementById("result-title"),
   resultPrice: document.getElementById("result-price"),
@@ -67,307 +77,119 @@ const refs = {
 };
 
 let currentState = null;
+let currentAuction = null;
+let selectedAuctionId = null;
 let currentName = "";
 let editingName = false;
 let pendingBid = false;
 let amountValue = 0;
 let amountTouched = false;
-let channel = null;
-let memoryState = null;
-let storageAvailable = true;
 let toastTimer = null;
 let priceFlashTimer = null;
 let ticking = false;
 const peers = new Map();
 const bannerMessages = new Set();
 
-function seedState(withBids = true) {
-  const now = Date.now();
-  const bids = withBids
-    ? [
-        {
-          id: 3,
-          name: "Peserta 03",
-          amount: 7_200_000,
-          at: new Date(now - 60_000).toISOString(),
-        },
-        {
-          id: 2,
-          name: "Peserta 02",
-          amount: 6_900_000,
-          at: new Date(now - 120_000).toISOString(),
-        },
-        {
-          id: 1,
-          name: "Peserta 01",
-          amount: 6_700_000,
-          at: new Date(now - 180_000).toISOString(),
-        },
-      ]
-    : [];
-
-  return {
-    version: 1,
-    auction: {
-      lot: "001",
-      title: "Sony Alpha A7 II",
-      subtitle: "Body only",
-      startingPrice: 6_500_000,
-      minIncrement: 100_000,
-      currentPrice: withBids ? 7_200_000 : 6_500_000,
-      status: "live",
-      startsAt: new Date(now - (withBids ? 180_000 : 0)).toISOString(),
-      endsAt: new Date(now + DEMO_DURATION_MS).toISOString(),
-      extensionCount: 0,
-      highestBidder: withBids ? "Peserta 03" : "",
-      winner: "",
-      finalPrice: null,
-    },
-    bids,
-  };
-}
-
-function isValidState(value) {
-  if (!value || value.version !== 1) return false;
-  const auction = value.auction;
-  if (!auction || !Array.isArray(value.bids)) return false;
-  if (typeof auction.currentPrice !== "number") return false;
-  if (typeof auction.startingPrice !== "number") return false;
-  if (typeof auction.minIncrement !== "number") return false;
-  if (!["live", "ended"].includes(auction.status)) return false;
-  if (Number.isNaN(Date.parse(auction.startsAt))) return false;
-  if (Number.isNaN(Date.parse(auction.endsAt))) return false;
-  return value.bids.every(
-    (bid) =>
-      bid &&
-      typeof bid.id === "number" &&
-      typeof bid.name === "string" &&
-      typeof bid.amount === "number" &&
-      !Number.isNaN(Date.parse(bid.at)),
-  );
-}
-
-function readState() {
-  let raw = null;
-  try {
-    raw = localStorage.getItem(STORAGE_KEY);
-  } catch {
-    storageAvailable = false;
-    return {
-      state: memoryState || seedState(),
-      fresh: !memoryState,
-      recovered: false,
-    };
-  }
-
-  if (!raw) {
-    if (memoryState) return { state: memoryState, fresh: false, recovered: false };
-    return { state: seedState(), fresh: true, recovered: false };
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (isValidState(parsed)) {
-      memoryState = parsed;
-      return { state: parsed, fresh: false, recovered: false };
-    }
-  } catch {
-    // Invalid JSON is treated as a recoverable demo state.
-  }
-
-  return { state: seedState(), fresh: false, recovered: true };
-}
-
-function writeState(next) {
-  memoryState = next;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    storageAvailable = false;
-    showBanner("Penyimpanan browser tidak tersedia. Sesi hanya bertahan di tab ini.");
-  }
-  channel?.postMessage({ type: "state", state: next, sender: TAB_ID });
-  return next;
-}
-
-async function withStateLock(fn) {
-  if (navigator.locks && typeof navigator.locks.request === "function") {
-    return navigator.locks.request(LOCK_NAME, fn);
-  }
-  return fn();
-}
-
-function getMinimum(state) {
-  return state.bids.length > 0
-    ? state.auction.currentPrice + state.auction.minIncrement
-    : state.auction.startingPrice;
-}
-
-function nextBidId(state) {
-  return state.bids.reduce((max, bid) => Math.max(max, bid.id), 0) + 1;
-}
-
-function endAuction(state) {
-  if (state.auction.status !== "live") return;
-  state.auction.status = "ended";
-  if (state.auction.highestBidder) {
-    state.auction.winner = state.auction.highestBidder;
-    state.auction.finalPrice = state.auction.currentPrice;
+function selectAuction(state) {
+  if (requestedAuctionId !== null) {
+    selectedAuctionId = findAuction(state, requestedAuctionId)?.id ?? null;
   } else {
-    state.auction.winner = "";
-    state.auction.finalPrice = null;
+    selectedAuctionId = getLiveAuction(state)?.id ?? selectedAuctionId;
   }
-}
 
-async function initState() {
-  return withStateLock(async () => {
-    const loaded = readState();
-    if (loaded.fresh || loaded.recovered) {
-      const next = seedState(true);
-      writeState(next);
-      return { state: next, recovered: loaded.recovered };
-    }
-    if (
-      loaded.state.auction.status === "live" &&
-      Date.now() >= Date.parse(loaded.state.auction.endsAt)
-    ) {
-      endAuction(loaded.state);
-      writeState(loaded.state);
-    }
-    return { state: loaded.state, recovered: false };
-  });
-}
+  if (selectedAuctionId === null) {
+    selectedAuctionId = state.auctions[0]?.id ?? null;
+  }
 
-async function placeBid({ name, amount }) {
-  return withStateLock(async () => {
-    const loaded = readState();
-    const state = loaded.state;
-
-    if (state.auction.status !== "live") {
-      return { ok: false, error: "Lelang sudah selesai." };
-    }
-
-    const now = Date.now();
-    if (now >= Date.parse(state.auction.endsAt)) {
-      endAuction(state);
-      writeState(state);
-      return { ok: false, error: "Lelang sudah selesai.", state };
-    }
-
-    if (!name || name.length < 2) {
-      return { ok: false, error: "Isi nama dulu sebelum bid." };
-    }
-    if (!Number.isSafeInteger(amount) || amount <= 0) {
-      return { ok: false, error: "Nominal bid tidak valid." };
-    }
-    if (amount > MAX_AMOUNT) {
-      return { ok: false, error: "Nominal bid terlalu besar." };
-    }
-    if (state.auction.highestBidder === name) {
-      return { ok: false, error: "Kamu sudah memegang harga tertinggi." };
-    }
-
-    const minimum = getMinimum(state);
-    if (amount < minimum) {
-      return {
-        ok: false,
-        error: `Bid minimum ${idr.format(minimum)}.`,
-        minimum,
-      };
-    }
-
-    const bid = {
-      id: nextBidId(state),
-      name,
-      amount,
-      at: new Date(now).toISOString(),
-    };
-    state.bids.unshift(bid);
-    state.auction.currentPrice = amount;
-    state.auction.highestBidder = name;
-
-    let extended = false;
-    const remaining = Date.parse(state.auction.endsAt) - now;
-    if (remaining <= ANTI_SNIPE_MS && state.auction.extensionCount < MAX_EXTENSIONS) {
-      state.auction.endsAt = new Date(
-        Date.parse(state.auction.endsAt) + 60_000,
-      ).toISOString();
-      state.auction.extensionCount += 1;
-      extended = true;
-    }
-
-    writeState(state);
-    return { ok: true, state, bid, extended };
-  });
-}
-
-async function resetDemo() {
-  if (!window.confirm("Reset lelang? Semua bid akan dihapus.")) return;
-  const next = await withStateLock(async () => {
-    const fresh = seedState(false);
-    writeState(fresh);
-    return fresh;
-  });
-  pendingBid = false;
-  editingName = false;
-  amountTouched = false;
-  refs.bidError.hidden = true;
-  refs.bidStatus.hidden = true;
-  applyState(next);
-  showToast("Lelang demo dimulai ulang.");
+  currentAuction = findAuction(state, selectedAuctionId);
+  if (!currentAuction) {
+    currentAuction = getLiveAuction(state) || state.auctions[0] || null;
+    selectedAuctionId = currentAuction?.id ?? null;
+  }
 }
 
 function applyState(next) {
-  if (!isValidState(next)) return;
-  const previous = currentState;
-  const previousHighest = previous?.auction.highestBidder;
-  const previousPrice = previous?.auction.currentPrice;
-  const previousExtensions = previous?.auction.extensionCount ?? 0;
-  const previousBidCount = previous?.bids.length ?? 0;
+  if (!next || !Array.isArray(next.auctions)) return;
 
+  const previousAuction = currentAuction;
   currentState = next;
+  selectAuction(next);
 
-  if (
-    previous &&
-    next.auction.status === "live" &&
-    previousHighest === currentName &&
-    next.auction.highestBidder &&
-    next.auction.highestBidder !== currentName &&
-    next.bids.length > previousBidCount
-  ) {
-    refs.bidStatus.hidden = true;
-    showToast(
-      `Kamu di-outbid. Harga baru ${idr.format(next.auction.currentPrice)} oleh ${next.auction.highestBidder}.`,
-    );
-  } else if (previous && next.auction.extensionCount > previousExtensions) {
-    showToast("Waktu diperpanjang 60 detik.");
+  if (!currentAuction) {
+    renderEmpty();
+    return;
   }
 
-  if (previous && next.auction.currentPrice !== previousPrice) {
-    flashPrice();
-    refs.priceAnnouncer.textContent = `Harga baru ${idr.format(
-      next.auction.currentPrice,
-    )} oleh ${next.auction.highestBidder}.`;
+  if (previousAuction && previousAuction.id === currentAuction.id) {
+    const previousHighest = previousAuction.highestBidder;
+    const previousPrice = previousAuction.currentPrice;
+    const previousExtensions = previousAuction.extensionCount;
+    const previousBidCount = previousAuction.bids.length;
+
+    if (
+      currentAuction.status === "live" &&
+      previousHighest === currentName &&
+      currentAuction.highestBidder &&
+      currentAuction.highestBidder !== currentName &&
+      currentAuction.bids.length > previousBidCount
+    ) {
+      refs.bidStatus.hidden = true;
+      showToast(
+        `Kamu di-outbid. Harga baru ${idr.format(
+          currentAuction.currentPrice,
+        )} oleh ${currentAuction.highestBidder}.`,
+      );
+    } else if (currentAuction.extensionCount > previousExtensions) {
+      showToast("Waktu diperpanjang 60 detik.");
+    }
+
+    if (currentAuction.currentPrice !== previousPrice) {
+      flashPrice();
+      refs.priceAnnouncer.textContent = `Harga baru ${idr.format(
+        currentAuction.currentPrice,
+      )} oleh ${currentAuction.highestBidder}.`;
+    }
   }
 
   render();
 }
 
-function render() {
-  if (!currentState) return;
-  const auction = currentState.auction;
-  const isLive = auction.status === "live";
-  const hasBids = currentState.bids.length > 0;
+function renderEmpty() {
+  refs.noAuction.hidden = false;
+  refs.lotSheet.hidden = true;
+  refs.auctionSection.hidden = true;
+  refs.liveState.classList.add("is-ended");
+  refs.liveState.classList.remove("is-draft");
+  refs.liveLabel.textContent = "KOSONG";
+  refs.main.setAttribute("aria-busy", "false");
+}
 
-  refs.liveState.classList.toggle("is-ended", !isLive);
-  refs.liveLabel.textContent = isLive ? "LIVE" : "SELESAI";
+function render() {
+  if (!currentAuction) {
+    renderEmpty();
+    return;
+  }
+
+  refs.noAuction.hidden = true;
+  refs.lotSheet.hidden = false;
+  refs.auctionSection.hidden = false;
+
+  const auction = currentAuction;
+  const isLive = auction.status === "live";
+  const isDraft = auction.status === "draft";
+  const isEnded = auction.status === "ended";
+  const hasBids = auction.bids.length > 0;
+
+  refs.liveState.classList.toggle("is-ended", isEnded);
+  refs.liveState.classList.toggle("is-draft", isDraft);
+  refs.liveLabel.textContent = isLive ? "LIVE" : isEnded ? "SELESAI" : "DRAFT";
   refs.priceLabel.textContent = hasBids ? "Harga saat ini" : "Harga awal";
   refs.price.textContent = idr.format(auction.currentPrice);
   renderMeta();
 
-  refs.extensionNote.hidden = auction.extensionCount === 0;
+  refs.extensionNote.hidden = !isLive || auction.extensionCount === 0;
   refs.extensionNote.textContent =
-    auction.extensionCount > 0
+    isLive && auction.extensionCount > 0
       ? `Diperpanjang ${auction.extensionCount} dari ${MAX_EXTENSIONS} kali`
       : "";
 
@@ -382,13 +204,14 @@ function render() {
   }
 
   refs.bidForm.hidden = !isLive;
-  refs.result.hidden = isLive;
+  refs.previewNote.hidden = !isDraft;
+  refs.result.hidden = !isEnded;
   refs.simulateRival.disabled = !isLive;
   refs.resetDemo.disabled = pendingBid;
   refs.resetResult.disabled = pendingBid;
 
   if (isLive) {
-    const minimum = getMinimum(currentState);
+    const minimum = getMinimum(auction);
     refs.minimumBid.textContent = idr.format(minimum);
     refs.increment.textContent = idr.format(auction.minIncrement);
 
@@ -401,17 +224,22 @@ function render() {
     updateQuickBids(minimum, auction.minIncrement);
     updateBidButton(minimum);
   } else {
+    refs.bidError.hidden = true;
+    refs.bidStatus.hidden = true;
+  }
+
+  if (isEnded) {
     renderResult();
   }
 
-  refs.bidCount.textContent = `${currentState.bids.length} bid`;
+  refs.bidCount.textContent = `${auction.bids.length} bid`;
   refs.ledgerLoading.hidden = true;
-  refs.ledgerEmpty.textContent = isLive
-    ? "Belum ada bid. Bid pertama akan muncul di sini."
-    : "Tidak ada bid pada lelang ini.";
+  refs.ledgerEmpty.textContent = isEnded
+    ? "Tidak ada bid pada lelang ini."
+    : "Belum ada bid. Bid pertama akan muncul di sini.";
   refs.ledgerEmpty.hidden = hasBids;
   refs.ledgerList.replaceChildren(
-    ...currentState.bids.map((bid) => {
+    ...auction.bids.map((bid) => {
       const item = document.createElement("li");
       item.className = "ledger-item";
 
@@ -436,16 +264,23 @@ function render() {
 }
 
 function renderMeta() {
-  if (!currentState) return;
-  const auction = currentState.auction;
-  refs.priceMeta.textContent = `${auction.highestBidder || "Belum ada bid"} · ${
-    currentState.bids.length
+  if (!currentAuction) return;
+  refs.priceMeta.textContent = `${currentAuction.highestBidder || "Belum ada bid"} · ${
+    currentAuction.bids.length
   } bid · ${viewerCount()} penonton`;
 }
 
 function renderCountdown() {
-  if (!currentState) return;
-  const auction = currentState.auction;
+  if (!currentAuction) return;
+  const auction = currentAuction;
+
+  if (auction.status === "draft") {
+    refs.countdown.textContent = "Belum dimulai";
+    refs.countdown.setAttribute("aria-label", "Lelang belum dimulai");
+    refs.timeFill.style.width = "0%";
+    return;
+  }
+
   if (auction.status !== "live") {
     refs.countdown.textContent = "Selesai";
     refs.countdown.setAttribute("aria-label", "Lelang selesai");
@@ -474,14 +309,13 @@ function renderCountdown() {
 }
 
 function renderResult() {
-  const auction = currentState.auction;
-  const winner = auction.winner;
+  const winner = currentAuction.winner;
   refs.resultTitle.textContent = winner
     ? `${winner} memenangkan lot ini.`
     : "Tidak ada bid. Lot tidak terjual.";
   refs.resultPrice.textContent =
-    winner && typeof auction.finalPrice === "number"
-      ? `Harga akhir ${idr.format(auction.finalPrice)}`
+    winner && typeof currentAuction.finalPrice === "number"
+      ? `Harga akhir ${idr.format(currentAuction.finalPrice)}`
       : "Tidak ada harga akhir.";
 }
 
@@ -493,13 +327,13 @@ function updateQuickBids(minimum, increment) {
     button.dataset.amount = String(amount);
     button.textContent = numberFormat.format(amount);
     button.setAttribute("aria-label", `Isi bid ${idr.format(amount)}`);
-    button.disabled = currentState.auction.status !== "live";
+    button.disabled = currentAuction?.status !== "live";
   });
 }
 
 function updateBidButton(minimum) {
-  if (!currentState) return;
-  const isLive = currentState.auction.status === "live";
+  if (!currentAuction) return;
+  const isLive = currentAuction.status === "live";
   let label = `Pasang bid ${idr.format(amountValue || minimum)}`;
   if (pendingBid) label = "Mengirim bid...";
   else if (!currentName) label = "Isi nama untuk bid";
@@ -524,7 +358,7 @@ function flashPrice() {
 }
 
 function formatTime(value) {
-  return timeFormat.format(new Date(value)).replaceAll(".", ":");
+  return ledgerTimeFormat.format(new Date(value)).replaceAll(".", ":");
 }
 
 function showBidError(message) {
@@ -557,11 +391,11 @@ function hideToast() {
 }
 
 function postPing() {
-  channel?.postMessage({ type: "ping", id: TAB_ID, at: Date.now() });
+  broadcast({ type: "ping", id: TAB_ID });
 }
 
 function postHello() {
-  channel?.postMessage({ type: "hello", id: TAB_ID });
+  broadcast({ type: "hello", id: TAB_ID });
 }
 
 function prunePeers() {
@@ -572,17 +406,10 @@ function prunePeers() {
 }
 
 function sayGoodbye() {
-  channel?.postMessage({ type: "bye", id: TAB_ID });
+  broadcast({ type: "bye", id: TAB_ID });
 }
 
-function handleChannelMessage(event) {
-  const message = event.data;
-  if (!message || message.sender === TAB_ID || message.id === TAB_ID) return;
-
-  if (message.type === "state" && isValidState(message.state)) {
-    applyState(message.state);
-    return;
-  }
+function handlePeerMessage(message) {
   if (message.type === "hello") {
     postPing();
     return;
@@ -599,7 +426,7 @@ function handleChannelMessage(event) {
 }
 
 function setupQuickBids() {
-  for (const index of [0, 1, 2]) {
+  for (let index = 0; index < 3; index += 1) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "button button-secondary";
@@ -608,7 +435,7 @@ function setupQuickBids() {
       amountTouched = true;
       refs.amountInput.value = numberFormat.format(amountValue);
       refs.bidError.hidden = true;
-      updateBidButton(getMinimum(currentState));
+      updateBidButton(getMinimum(currentAuction));
       refs.amountInput.focus();
     });
     refs.quickBids.append(button);
@@ -636,7 +463,9 @@ function setupEvents() {
     try {
       sessionStorage.setItem(NAME_KEY, value);
     } catch {
-      showBanner("Nama tidak bisa disimpan di tab ini, tetapi tetap dipakai selama halaman terbuka.");
+      showBanner(
+        "Nama tidak bisa disimpan di tab ini, tetapi tetap dipakai selama halaman terbuka.",
+      );
     }
     render();
     refs.amountInput.focus();
@@ -663,7 +492,7 @@ function setupEvents() {
     amountTouched = true;
     refs.amountInput.value = digits ? numberFormat.format(amountValue) : "";
     refs.bidError.hidden = true;
-    updateBidButton(getMinimum(currentState));
+    updateBidButton(getMinimum(currentAuction));
   });
 
   refs.bidForm.addEventListener("submit", async (event) => {
@@ -680,12 +509,12 @@ function setupEvents() {
       refs.nameInput.focus();
       return;
     }
-    if (currentState.auction.status !== "live") {
+    if (!currentAuction || currentAuction.status !== "live") {
       showBidError("Lelang sudah selesai.");
       return;
     }
 
-    const minimum = getMinimum(currentState);
+    const minimum = getMinimum(currentAuction);
     if (!Number.isSafeInteger(amountValue) || amountValue <= 0) {
       showBidError("Masukkan nominal bid yang valid.");
       return;
@@ -706,7 +535,11 @@ function setupEvents() {
     pendingBid = true;
     render();
 
-    const result = await placeBid({ name: currentName, amount: amountValue });
+    const result = await placeBid({
+      auctionId: currentAuction.id,
+      name: currentName,
+      amount: amountValue,
+    });
     pendingBid = false;
 
     if (result.ok) {
@@ -716,7 +549,7 @@ function setupEvents() {
         : "Bid tercatat. Kamu memegang harga tertinggi.";
       refs.bidStatus.hidden = false;
       amountTouched = false;
-      amountValue = getMinimum(result.state);
+      amountValue = getMinimum(result.auction);
       refs.amountInput.value = numberFormat.format(amountValue);
       render();
       return;
@@ -732,18 +565,47 @@ function setupEvents() {
     render();
   });
 
-  refs.resetDemo.addEventListener("click", resetDemo);
-  refs.resetResult.addEventListener("click", resetDemo);
+  refs.resetDemo.addEventListener("click", async () => {
+    if (!window.confirm("Reset seluruh demo? Semua lelang dan bid akan dihapus.")) {
+      return;
+    }
+    const next = await resetDemo();
+    pendingBid = false;
+    editingName = false;
+    amountTouched = false;
+    refs.bidError.hidden = true;
+    refs.bidStatus.hidden = true;
+    applyState(next);
+    showToast("Demo dimulai ulang.");
+  });
+
+  refs.resetResult.addEventListener("click", async () => {
+    if (!window.confirm("Reset seluruh demo? Semua lelang dan bid akan dihapus.")) {
+      return;
+    }
+    const next = await resetDemo();
+    pendingBid = false;
+    editingName = false;
+    amountTouched = false;
+    refs.bidError.hidden = true;
+    refs.bidStatus.hidden = true;
+    applyState(next);
+    showToast("Demo dimulai ulang.");
+  });
 
   refs.simulateRival.addEventListener("click", async () => {
-    if (!currentState || currentState.auction.status !== "live") return;
-    const wasHighest = currentState.auction.highestBidder === currentName;
-    const minimum = getMinimum(currentState);
+    if (!currentAuction || currentAuction.status !== "live") return;
+    const wasHighest = currentAuction.highestBidder === currentName;
+    const minimum = getMinimum(currentAuction);
     const rivalName =
-      currentState.auction.highestBidder === "Penantang demo"
+      currentAuction.highestBidder === "Penantang demo"
         ? "Penantang demo 2"
         : "Penantang demo";
-    const result = await placeBid({ name: rivalName, amount: minimum });
+    const result = await placeBid({
+      auctionId: currentAuction.id,
+      name: rivalName,
+      amount: minimum,
+    });
     if (!result.ok) {
       showToast(result.error || "Simulasi penantang gagal.");
       return;
@@ -766,31 +628,19 @@ function setupEvents() {
   window.addEventListener("pagehide", sayGoodbye);
   window.addEventListener("beforeunload", () => {
     sayGoodbye();
-    channel?.close();
   });
 }
 
 async function tick() {
-  if (!currentState || ticking) return;
+  if (!currentAuction || ticking) return;
   renderCountdown();
-  if (currentState.auction.status !== "live") return;
-  if (Date.now() < Date.parse(currentState.auction.endsAt)) return;
+  if (currentAuction.status !== "live") return;
+  if (Date.now() < Date.parse(currentAuction.endsAt)) return;
 
   ticking = true;
   try {
-    const ended = await withStateLock(async () => {
-      const loaded = readState();
-      if (
-        loaded.state.auction.status === "live" &&
-        Date.now() >= Date.parse(loaded.state.auction.endsAt)
-      ) {
-        endAuction(loaded.state);
-        writeState(loaded.state);
-        return loaded.state;
-      }
-      return null;
-    });
-    if (ended) applyState(ended);
+    const result = await endAuctionById(currentAuction.id);
+    if (result.ok) applyState(result.state);
   } finally {
     ticking = false;
   }
@@ -806,46 +656,29 @@ async function init() {
 
   setupQuickBids();
   setupEvents();
-
-  try {
-    channel = new BroadcastChannel(CHANNEL_NAME);
-    channel.addEventListener("message", handleChannelMessage);
-  } catch {
-    channel = null;
-  }
-
-  window.addEventListener("storage", (event) => {
-    if (event.key !== STORAGE_KEY || !event.newValue) return;
-    try {
-      const parsed = JSON.parse(event.newValue);
-      if (isValidState(parsed)) applyState(parsed);
-    } catch {
-      showBanner("State dari tab lain tidak bisa dibaca.");
-    }
-  });
+  connectStateChannel({ onState: applyState, onMessage: handlePeerMessage });
 
   let loaded;
   try {
     loaded = await initState();
   } catch {
-    currentState = seedState(true);
-    try {
-      writeState(currentState);
-    } catch {
-      // State stays in memory when storage is blocked.
-    }
-    showBanner("Sesi demo tidak bisa dimuat. Sesi baru dibuat.");
+    currentState = { version: 2, auctions: [] };
+    showBanner("Sesi demo tidak bisa dimuat. Coba muat ulang halaman.");
     loaded = { state: currentState, recovered: false };
   }
+
   currentState = loaded.state;
+  selectAuction(currentState);
 
   if (loaded.recovered) {
     showBanner("State demo tidak terbaca. Sesi dimulai ulang.");
   }
-  if (!storageAvailable) {
-    showBanner("Penyimpanan browser tidak tersedia. Sesi hanya bertahan di tab ini.");
+  if (!isStorageAvailable()) {
+    showBanner(
+      "Penyimpanan browser tidak tersedia. Sesi hanya bertahan di tab ini.",
+    );
   }
-  if (!channel) {
+  if (!isChannelAvailable()) {
     showBanner(
       "Sinkronisasi antar tab tidak tersedia di browser ini. Sesi berjalan di tab ini saja.",
     );
@@ -853,10 +686,10 @@ async function init() {
 
   render();
   refs.main.setAttribute("aria-busy", "false");
-  refs.syncNote.textContent = channel
+  refs.syncNote.textContent = isChannelAvailable()
     ? "Sinkron antar tab aktif di browser ini."
     : "Sesi berjalan di tab ini saja.";
-  refs.syncNote.classList.toggle("is-warning", !channel);
+  refs.syncNote.classList.toggle("is-warning", !isChannelAvailable());
 
   postHello();
   postPing();

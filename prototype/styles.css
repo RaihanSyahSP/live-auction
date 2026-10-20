@@ -137,12 +137,23 @@ dd {
   color: var(--ink);
 }
 
+.live-state.is-draft {
+  border-color: var(--rule);
+  color: var(--muted);
+}
+
 .banner {
   margin-top: 16px;
   padding: 12px 14px;
   border: 1px solid var(--accent);
   background: var(--accent-tint);
   font-size: 0.88rem;
+}
+
+.banner-static {
+  border-color: var(--rule);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .lot-sheet {
@@ -280,6 +291,265 @@ h1 {
   border-top: 1px solid var(--rule-soft);
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.no-auction {
+  max-width: 60ch;
+  padding: clamp(40px, 8vw, 80px) 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.no-auction h1 {
+  max-width: none;
+  margin-bottom: 14px;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.no-auction p {
+  margin-bottom: 20px;
+  color: var(--muted);
+}
+
+.preview-note {
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-size: 0.85rem;
+}
+
+.preview-note p {
+  margin-bottom: 8px;
+}
+
+/* Admin */
+.admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  align-items: start;
+  gap: var(--gap);
+  padding: clamp(28px, 5vw, 56px) 0;
+}
+
+.admin-section {
+  min-width: 0;
+}
+
+.admin-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.admin-head h1 {
+  max-width: none;
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  line-height: 1;
+}
+
+.admin-summary {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-note {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.admin-loading {
+  padding: 18px 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.admin-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.admin-card {
+  padding: 18px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.admin-card.is-live {
+  border-color: var(--ink);
+}
+
+.admin-card.is-ended {
+  border-color: var(--rule-soft);
+}
+
+.admin-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.admin-status.is-live {
+  color: var(--accent);
+}
+
+.admin-status.is-draft,
+.admin-status.is-ended {
+  color: var(--muted);
+}
+
+.admin-lot {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.admin-card-title {
+  margin-top: 10px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.55rem;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.admin-card-subtitle {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.admin-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.admin-meta div {
+  min-width: 0;
+}
+
+.admin-meta dt {
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-meta dd {
+  margin-top: 2px;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.admin-actions .button {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+}
+
+.admin-empty {
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.admin-empty p {
+  margin-bottom: 8px;
+}
+
+.admin-form-section {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.admin-form-panel {
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid var(--ink);
+  background: var(--surface);
+}
+
+.admin-form-panel h2 {
+  margin-top: 2px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  font-weight: 400;
+}
+
+.admin-form {
+  margin-top: 18px;
+}
+
+.admin-form label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.admin-form textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+
+.admin-form textarea:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+  border-color: var(--ink);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
+.form-grid > div:last-child {
+  grid-column: 1 / -1;
+}
+
+.admin-form .field-help {
+  margin-top: 4px;
+}
+
+.admin-form .button-primary {
+  margin-top: 18px;
 }
 
 .auction {
@@ -510,6 +780,7 @@ input:focus-visible {
   border-radius: var(--radius);
   font: inherit;
   text-align: center;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -535,6 +806,36 @@ input:focus-visible {
 .button-secondary:hover:not(:disabled) {
   background: var(--ink);
   color: var(--paper);
+}
+
+.button-danger {
+  border-color: var(--accent);
+  background: transparent;
+  color: var(--accent);
+}
+
+.button-danger:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--white);
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.text-link:hover {
+  color: var(--accent);
+}
+
+.text-link:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .button:disabled {
@@ -761,12 +1062,19 @@ input:focus-visible {
 
 @media (max-width: 960px) {
   .lot-sheet,
-  .auction {
+  .auction,
+  .admin-layout {
     grid-template-columns: 1fr;
   }
 
-  .bid-panel {
+  .bid-panel,
+  .admin-form-section {
     position: static;
+  }
+
+  .admin-form-section {
+    max-height: none;
+    overflow: visible;
   }
 
   .ledger-list {
@@ -829,7 +1137,20 @@ input:focus-visible {
   }
 
   .demo-buttons .button {
-    flex: 1;
+    flex: 1 1 120px;
+  }
+
+  .admin-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid > div:last-child {
+    grid-column: auto;
   }
 
   .toast {

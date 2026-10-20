@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin Demo: Lelang</title>
+    <meta name="description" content="Prototipe halaman admin untuk ruang lelang elektronik bekas.">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="admin.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#admin-main">Lewati ke konten</a>
+
+    <div class="page">
+      <header class="masthead">
+        <div class="masthead-brand">
+          <p class="wordmark">LELANG</p>
+          <p class="wordmark-note">Admin prototipe</p>
+        </div>
+        <div class="masthead-meta">
+          <p class="lot-id">ADMIN DEMO</p>
+          <a class="text-link" href="index.html">Buka ruang lelang</a>
+        </div>
+      </header>
+
+      <p class="banner banner-static">
+        Mode demo admin. Tidak ada autentikasi. Jangan dipakai untuk data nyata.
+        Semua perubahan tersimpan di browser ini dan tersinkron ke tab lain.
+      </p>
+      <div class="banner" id="admin-banner" role="alert" hidden></div>
+
+      <main id="admin-main" class="admin-layout" aria-busy="true">
+        <section class="admin-section" aria-labelledby="auction-list-title">
+          <div class="admin-head">
+            <div>
+              <p class="kicker">Ruang kerja</p>
+              <h1 id="auction-list-title">Lelang</h1>
+              <p class="admin-summary" id="admin-summary">Memuat...</p>
+            </div>
+            <a class="button button-secondary" href="#draft-form">Buat draft</a>
+          </div>
+
+          <p class="admin-note">
+            Hanya satu lelang live pada satu waktu. Akhiri lelang live sebelum
+            memulai draft lain.
+          </p>
+
+          <p class="admin-loading" id="admin-loading">Memuat daftar lelang...</p>
+          <div class="admin-list" id="admin-list"></div>
+          <div class="admin-empty" id="admin-empty" hidden>
+            <p>Belum ada lelang.</p>
+            <a class="text-link" href="#draft-form">Buat draft pertama</a>
+          </div>
+        </section>
+
+        <section class="admin-section admin-form-section" id="draft-form" aria-labelledby="draft-title">
+          <div class="admin-form-panel">
+            <p class="kicker">Lelang baru</p>
+            <h2 id="draft-title">Buat draft</h2>
+            <p class="field-help">
+              Foto memakai ilustrasi placeholder di prototipe ini. Tidak ada upload file.
+            </p>
+
+            <form id="create-form" class="admin-form" novalidate>
+              <label for="auction-title">Judul</label>
+              <input id="auction-title" name="title" type="text" maxlength="80" placeholder="Misalnya: Fujifilm X-T2" autocomplete="off">
+
+              <label for="auction-subtitle">Subjudul</label>
+              <input id="auction-subtitle" name="subtitle" type="text" maxlength="80" placeholder="Misalnya: Body only" autocomplete="off">
+
+              <label for="auction-description">Deskripsi</label>
+              <textarea id="auction-description" name="description" rows="4" placeholder="Kondisi, riwayat pemakaian, dan catatan penting."></textarea>
+
+              <label for="auction-condition">Kondisi</label>
+              <input id="auction-condition" name="condition" type="text" maxlength="40" placeholder="Misalnya: Used, 8/10" autocomplete="off">
+
+              <label for="auction-includes">Kelengkapan</label>
+              <input id="auction-includes" name="includes" type="text" maxlength="160" placeholder="Body, baterai, charger" autocomplete="off">
+              <p class="field-help">Pisahkan dengan koma.</p>
+
+              <div class="form-grid">
+                <div>
+                  <label for="starting-price">Harga awal</label>
+                  <div class="amount-field">
+                    <span class="currency" aria-hidden="true">Rp</span>
+                    <input id="starting-price" name="startingPrice" type="text" inputmode="numeric" autocomplete="off" placeholder="6.500.000">
+                  </div>
+                </div>
+                <div>
+                  <label for="min-increment">Kelipatan</label>
+                  <div class="amount-field">
+                    <span class="currency" aria-hidden="true">Rp</span>
+                    <input id="min-increment" name="minIncrement" type="text" inputmode="numeric" autocomplete="off" placeholder="100.000">
+                  </div>
+                </div>
+                <div>
+                  <label for="duration">Durasi, menit</label>
+                  <input id="duration" name="durationMinutes" type="number" min="1" max="60" step="1" inputmode="numeric" placeholder="10">
+                </div>
+              </div>
+
+              <p class="field-error" id="form-error" role="alert" hidden></p>
+              <p class="bid-status" id="form-status" role="status" aria-live="polite" hidden></p>
+
+              <button type="submit" class="button button-primary" id="create-submit">
+                Simpan sebagai draft
+              </button>
+            </form>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-copy">
+          <p>Prototipe admin. Tidak ada autentikasi, pembayaran, atau pengiriman.</p>
+          <p class="footer-rule">
+            Start, end, dan bid langsung memengaruhi ruang lelang di tab lain.
+          </p>
+        </div>
+        <div class="demo-controls">
+          <p class="label">Kontrol demo</p>
+          <div class="demo-buttons">
+            <button type="button" class="button button-secondary" id="reset-all">Reset semua demo</button>
+            <a class="button button-secondary" href="index.html">Buka ruang</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+      <p id="toast-message"></p>
+      <button type="button" class="toast-close" id="toast-close" aria-label="Tutup notifikasi">Tutup</button>
+    </div>
+
+    <noscript><p class="noscript">Halaman admin ini memerlukan JavaScript.</p></noscript>
+  </body>
+</html>
