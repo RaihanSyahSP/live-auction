@@ -1,8 +1,10 @@
-# Live Auction — Desain Produk & Teknis
+# Live Auction: Desain Produk & Teknis
 
 Tanggal: 2026-10-20
 Status: Draft untuk review
 Jenis: Proyek portofolio / pembelajaran
+
+Catatan: prototipe UI saat ini ada di `prototype/` dan memakai HTML, CSS, serta JavaScript tanpa backend. Backend Go pada dokumen ini adalah target implementasi berikutnya.
 
 ## 1. Ringkasan
 
@@ -492,7 +494,7 @@ Setup lokal:
 
 1. `docker compose up -d postgres`
 2. Salin `.env.example` ke `.env`.
-3. `cd server && go run ./cmd/api` — migrasi dijalankan saat startup.
+3. `cd server && go run ./cmd/api`. Migrasi dijalankan saat startup.
 4. `cd web && npm install && npm run dev`.
 5. `go run ./cmd/seed` untuk admin, user demo, dan satu lelang draft.
 

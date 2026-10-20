@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lelang Lot 001: Sony Alpha A7 II</title>
+    <meta name="description" content="Prototipe ruang lelang real-time untuk elektronik bekas.">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Lewati ke konten</a>
+
+    <div class="page">
+      <header class="masthead">
+        <div class="masthead-brand">
+          <p class="wordmark">LELANG</p>
+          <p class="wordmark-note">Prototipe ruang lelang</p>
+        </div>
+        <div class="masthead-meta">
+          <p class="lot-id">LOT 001</p>
+          <p class="live-state" id="live-state">
+            <span class="live-mark" aria-hidden="true"></span>
+            <span id="live-label">LIVE</span>
+          </p>
+          <p class="demo-tag">Data demo</p>
+        </div>
+      </header>
+
+      <div class="banner" id="app-banner" role="alert" hidden></div>
+
+      <main id="main" aria-busy="true">
+        <section class="lot-sheet" aria-labelledby="lot-title">
+          <div class="lot-visual">
+            <figure class="image-frame">
+              <span class="image-stamp">LOT 001</span>
+              <svg viewBox="0 0 640 420" aria-hidden="true" focusable="false">
+                <rect x="96" y="128" width="448" height="216" rx="10"></rect>
+                <path d="M150 128 L178 88 H268 L296 128"></path>
+                <circle cx="420" cy="236" r="82"></circle>
+                <circle cx="420" cy="236" r="54"></circle>
+                <circle cx="420" cy="236" r="20"></circle>
+                <rect x="132" y="164" width="76" height="34" rx="4"></rect>
+                <circle cx="170" cy="100" r="7"></circle>
+                <path d="M520 168 h12"></path>
+              </svg>
+              <figcaption>Foto unit belum tersedia. Prototipe memakai ilustrasi.</figcaption>
+            </figure>
+            <div class="lot-facts">
+              <p><span class="fact-label">Kondisi</span> Used, 8/10</p>
+              <p><span class="fact-label">Kelengkapan</span> Body, baterai, charger, tutup body</p>
+            </div>
+          </div>
+
+          <div class="lot-copy">
+            <p class="kicker">Elektronik bekas / Kamera mirrorless</p>
+            <h1 id="lot-title">Sony Alpha A7 II <span class="title-sub">Body only</span></h1>
+            <p class="lot-description">
+              Kamera full-frame 24 MP dengan stabilisasi 5-axis. Body saja, tanpa lensa.
+              Dial dan tombol responsif, layar belakang punya baret halus. Baterai masih
+              menyala normal.
+            </p>
+            <dl class="spec-list">
+              <div><dt>Sensor</dt><dd>Full-frame 24 MP</dd></div>
+              <div><dt>Mount</dt><dd>Sony E-mount</dd></div>
+              <div><dt>Stabilisasi</dt><dd>5-axis in-body</dd></div>
+              <div><dt>Video</dt><dd>1080p</dd></div>
+            </dl>
+            <p class="demo-note">
+              <strong>Data demo.</strong> Spesifikasi dan kondisi di atas adalah contoh
+              untuk prototipe, bukan unit nyata.
+            </p>
+          </div>
+        </section>
+
+        <section class="auction" aria-labelledby="auction-heading">
+          <h2 class="sr-only" id="auction-heading">Ruang bid</h2>
+
+          <div class="bid-panel">
+            <div class="price-block">
+              <p class="label" id="price-label">Harga saat ini</p>
+              <p class="price" id="price">Rp 7.200.000</p>
+              <p class="price-meta" id="price-meta">Peserta 03 · 3 bid · 1 penonton</p>
+
+              <div class="countdown-row">
+                <div>
+                  <p class="label">Sisa waktu</p>
+                  <p class="countdown" id="countdown" role="timer" aria-live="off">09:59</p>
+                </div>
+                <p class="extension-note" id="extension-note" hidden></p>
+              </div>
+              <div class="time-rule" aria-hidden="true"><span id="time-fill"></span></div>
+            </div>
+
+            <div class="identity" id="identity">
+              <p class="label">Identitas penawar</p>
+              <div id="identity-summary" hidden>
+                <p class="identity-line">Bid sebagai <strong id="identity-name"></strong></p>
+                <button type="button" class="text-button" id="change-name">Ganti nama</button>
+              </div>
+              <form id="name-form" class="name-form" novalidate>
+                <label for="name-input">Nama di ledger</label>
+                <div class="inline-form">
+                  <input id="name-input" name="name" type="text" maxlength="40" autocomplete="nickname" placeholder="Misalnya: Raihan" aria-describedby="name-help name-error">
+                  <button type="submit" class="button button-secondary">Simpan nama</button>
+                </div>
+                <p class="field-help" id="name-help">Nama disimpan per tab. Buka tab lain dengan nama berbeda untuk mencoba alur bid.</p>
+                <p class="field-error" id="name-error" role="alert" hidden></p>
+              </form>
+            </div>
+
+            <form id="bid-form" class="bid-form" novalidate>
+              <label for="amount-input">Bid kamu</label>
+              <div class="amount-field">
+                <span class="currency" aria-hidden="true">Rp</span>
+                <input id="amount-input" name="amount" type="text" inputmode="numeric" autocomplete="off" aria-describedby="amount-help bid-error">
+              </div>
+              <p class="field-help" id="amount-help">
+                Bid minimum <span id="minimum-bid">Rp 7.300.000</span>.
+                Kelipatan <span id="increment">Rp 100.000</span>.
+              </p>
+              <div class="quick-bids" id="quick-bids" aria-label="Pilihan bid cepat"></div>
+              <button type="submit" class="button button-primary" id="bid-submit">Pasang bid Rp 7.300.000</button>
+              <p class="field-error" id="bid-error" role="alert" hidden></p>
+              <p class="bid-status" id="bid-status" role="status" aria-live="polite" hidden></p>
+            </form>
+
+            <div class="result" id="result" hidden>
+              <p class="label">Hasil lelang</p>
+              <p class="result-title" id="result-title"></p>
+              <p class="result-price" id="result-price"></p>
+              <button type="button" class="button button-primary" id="reset-result">Mulai ulang demo</button>
+            </div>
+
+            <p class="sync-note" id="sync-note">Menyiapkan sesi...</p>
+          </div>
+
+          <aside class="ledger" aria-labelledby="ledger-heading">
+            <div class="ledger-head">
+              <h2 id="ledger-heading">Riwayat bid</h2>
+              <p class="ledger-count" id="bid-count">3 bid</p>
+            </div>
+            <p class="ledger-loading" id="ledger-loading">Memuat riwayat bid...</p>
+            <ol class="ledger-list" id="ledger-list"></ol>
+            <p class="empty-state" id="ledger-empty" hidden>Belum ada bid. Bid pertama akan muncul di sini.</p>
+            <p class="ledger-note">Urutan terbaru di atas. Waktu memakai jam perangkat ini.</p>
+          </aside>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-copy">
+          <p>
+            Prototipe UI. Tidak ada server, pembayaran, atau pengiriman. Data demo
+            disinkronkan antar tab lewat BroadcastChannel.
+          </p>
+          <p class="footer-rule">
+            Bid di 60 detik terakhir memperpanjang sesi 60 detik, maksimal 5 kali.
+          </p>
+        </div>
+        <div class="demo-controls">
+          <p class="label">Kontrol demo</p>
+          <div class="demo-buttons">
+            <button type="button" class="button button-secondary" id="simulate-rival">Simulasi penantang</button>
+            <button type="button" class="button button-secondary" id="reset-demo">Reset lelang</button>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+      <p id="toast-message"></p>
+      <button type="button" class="toast-close" id="toast-close" aria-label="Tutup notifikasi">Tutup</button>
+    </div>
+
+    <p class="sr-only" id="price-announcer" aria-live="polite"></p>
+    <noscript><p class="noscript">Prototipe ini memerlukan JavaScript.</p></noscript>
+  </body>
+</html>
