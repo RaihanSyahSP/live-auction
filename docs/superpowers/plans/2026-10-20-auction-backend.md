@@ -8,14 +8,16 @@
 
 **Architecture:** HTTP API memakai `net/http`, PostgreSQL sebagai sumber kebenaran, transaksi bid dengan `SELECT FOR UPDATE`, room manager untuk fan-out WebSocket, dan scheduler untuk menutup lelang. Layer mengikuti controller, service, repository, model, middleware, exception, dan helper seperti repo referensi `golang-restful`, tetapi tanpa Wire, httprouter, lib/pq, atau ORM.
 
-**Tech Stack:** Go 1.26, PostgreSQL, pgx/v5, coder/websocket, golang-jwt/v5, bcrypt, validator/v10, x/time/rate, prometheus/client_golang, golang-migrate.
+**Tech Stack:** Go 1.26, PostgreSQL 18, pgx/v5, coder/websocket, golang-jwt/v5, bcrypt, validator/v10, x/time/rate, prometheus/client_golang, golang-migrate, google/uuid.
 
 **Spec:** `docs/superpowers/specs/2026-10-20-auction-backend-design.md`
 
 ## Global Constraints
 
 - Go 1.26.5.
+- PostgreSQL 18 untuk default `uuidv7()`.
 - Tanpa ORM, Wire, httprouter, atau lib/pq.
+- Semua primary key dan foreign key bertipe `uuid`, default `uuidv7()`. Tidak ada ID `bigint`.
 - Semua harga integer rupiah, disimpan sebagai `bigint`.
 - Semua timestamp UTC.
 - Access token JWT HS256, 15 menit.
@@ -87,6 +89,7 @@ server/
     exception/error_handler.go
     helper/json.go
     helper/testdb.go
+    helper/uuid.go
     realtime/event.go
     realtime/client.go
     realtime/room.go
@@ -191,6 +194,7 @@ go get github.com/jackc/pgx/v5@latest
 go get github.com/golang-migrate/migrate/v4@latest
 go get github.com/golang-migrate/migrate/v4/database/postgres
 go get github.com/golang-migrate/migrate/v4/source/file
+go get github.com/google/uuid@latest
 ```
 
 - [ ] **Step 2: Create Docker Compose for PostgreSQL**
@@ -206,7 +210,7 @@ Create `schema_test.go` with tests:
 - `TestIdempotencyIsUniquePerAuction`: insert same `(auction_id, user_id, idempotency_key)` twice, expect unique violation.
 - `TestRefreshTokenHashIsUnique`: insert same `token_hash` twice, expect unique violation.
 
-Use `helper.OpenTestDB(t)` and `helper.TruncateAll(t, pool)`. Create a test helper that inserts a valid user first, then a valid auction with every required column. `OpenTestDB` must resolve the migrations directory with `runtime.Caller` so it works regardless of the test working directory.
+Use `helper.OpenTestDB(t)` and `helper.TruncateAll(t, pool)`. Create a test helper that inserts a valid user first, then a valid auction with every required column. Generate fixture IDs with `uuid.New()` and insert them explicitly. `OpenTestDB` must resolve the migrations directory with `runtime.Caller` so it works regardless of the test working directory.
 
 - [ ] **Step 4: Run schema tests to verify they fail**
 
@@ -221,8 +225,18 @@ Expected: FAIL because tables and helper do not exist.
 
 - [ ] **Step 5: Write the migration**
 
+Keep the only migration directory at `server/migrations`. Do not create or use a top-level `db/` folder.
+
+```powershell
+cd D:\live-auction\server
+migrate create -ext sql -dir migrations -seq init
+```
+
+This creates `000001_init.up.sql` and `000001_init.down.sql`.
+
 Translate the DDL in the spec exactly, including:
-- all three table groups plus `refresh_tokens`;
+- all four tables: `users`, `auctions`, `bids`, `refresh_tokens`;
+- all primary keys and foreign keys as `uuid` with `default uuidv7()`;
 - `one_live_auction` partial unique index;
 - `users_email_lower_idx`;
 - `bids_idempotency_idx`;
@@ -235,7 +249,7 @@ The down migration drops in reverse order: `refresh_tokens`, `bids`, `auctions`,
 
 `NewDB` uses `pgxpool.New`, sets max connections, and pings with a 5 second timeout. `OpenTestDB` skips the test if `TEST_DATABASE_URL` is empty, runs migrations once with `sync.Once`, and returns a pool. `TruncateAll` runs:
 ```sql
-TRUNCATE refresh_tokens, bids, auctions, users RESTART IDENTITY CASCADE;
+TRUNCATE refresh_tokens, bids, auctions, users CASCADE;
 ```
 
 - [ ] **Step 7: Run migration and schema tests**
@@ -266,6 +280,7 @@ git commit -m "feat(server): add postgres schema and constraints"
 - Create: `server/internal/repository/user_repository_test.go`
 - Create: `server/internal/repository/auction_repository_test.go`
 - Create: `server/internal/exception/errors.go`
+- Create: `server/internal/helper/uuid.go`
 
 **Interfaces:**
 - Produces: `domain.Role`, `domain.RoleUser`, `domain.RoleAdmin`
@@ -275,25 +290,27 @@ git commit -m "feat(server): add postgres schema and constraints"
 - Produces: `repository.UserRepository`:
   - `Create(ctx, tx, user) (domain.User, error)`
   - `FindByEmail(ctx, tx, email) (domain.User, error)`
-  - `FindByID(ctx, tx, id) (domain.User, error)`
+  - `FindByID(ctx, tx, id uuid.UUID) (domain.User, error)`
 - Produces: `repository.AuctionRepository`:
   - `Create(ctx, tx, auction) (domain.Auction, error)`
-  - `FindByID(ctx, tx, id) (domain.Auction, error)`
+  - `FindByID(ctx, tx, id uuid.UUID) (domain.Auction, error)`
   - `FindCurrentLive(ctx, tx) (domain.Auction, error)`
   - `List(ctx, tx) ([]domain.Auction, error)`
   - `ListEnded(ctx, tx, limit int) ([]domain.Auction, error)`
-  - `LockByID(ctx, tx, id) (domain.Auction, error)`
+  - `LockByID(ctx, tx, id uuid.UUID) (domain.Auction, error)`
   - `Update(ctx, tx, auction) (domain.Auction, error)`
-  - `DeleteDraft(ctx, tx, id) error`
+  - `DeleteDraft(ctx, tx, id uuid.UUID) error`
   - `ListDue(ctx, tx, now time.Time) ([]domain.Auction, error)`
 
 - [ ] **Step 1: Write domain models and repository interfaces**
 
-Use the fields from the spec. `Auction` must include `Version int64`, `HighestBidderID *int64`, `WinnerID *int64`, `FinalPrice *int64`, and nullable time pointers. `BidView` includes `Bid` fields plus `DisplayName string`.
+Use the fields from the spec. All domain IDs are `uuid.UUID`. `Auction` must include `ID uuid.UUID`, `CreatedBy uuid.UUID`, `Version int64`, `HighestBidderID *uuid.UUID`, `WinnerID *uuid.UUID`, `FinalPrice *int64`, and nullable time pointers. `Bid` has `ID`, `AuctionID`, and `UserID` as `uuid.UUID`. `RefreshToken` has `ID`, `UserID`, and `FamilyID` as `uuid.UUID`, plus `ReplacedByID *uuid.UUID`. `BidView` includes `Bid` fields plus `DisplayName string`. All ID fields in web DTOs are `uuid.UUID` and serialize as strings.
+
+Add `helper.UUIDToPg(uuid.UUID) pgtype.UUID`, `helper.PgToUUID(pgtype.UUID) uuid.UUID`, `helper.UUIDPtrToPg(*uuid.UUID) pgtype.UUID`, and `helper.PgToUUIDPtr(pgtype.UUID) *uuid.UUID`. Repositories scan UUID columns through `pgtype.UUID` and convert explicitly.
 
 - [ ] **Step 2: Write failing user repository tests**
 
-Tests:
+Use `uuid.New()` for fixture IDs. Tests:
 - `TestCreateUserAndFindByEmail` lowercases email at the service boundary and returns the stored user.
 - `TestCreateUserRejectsDuplicateEmail` expects a unique violation mapped to a typed error.
 - `TestFindUserNotFound` expects `exception.ErrUserNotFound`.
@@ -305,12 +322,12 @@ Expected: FAIL.
 
 - [ ] **Step 4: Implement user repository**
 
-Use `pgx.Tx` and parameterized SQL. Scan all columns explicitly. Return typed not-found errors from `exception`.
+Use `pgx.Tx` and parameterized SQL. Scan all columns explicitly. Use `RETURNING` to get the generated UUID. Scan UUID columns through `pgtype.UUID` and convert with `helper.PgToUUID`. Return typed not-found errors from `exception`.
 
 - [ ] **Step 5: Write failing auction repository tests**
 
-Tests:
-- create draft and find by ID;
+Use `uuid.New()` for fixture IDs. Tests:
+- create draft and find by UUID;
 - find current live;
 - list all sorted by creation date;
 - list ended limited by limit;
@@ -320,7 +337,7 @@ Tests:
 
 - [ ] **Step 6: Implement auction repository**
 
-Implement all methods with explicit columns and `RETURNING`. `LockByID` uses `SELECT ... FOR UPDATE`. `Update` writes mutable fields including `version` and returns the updated row. `ListDue` filters `status = 'live' AND ends_at <= $1`.
+Implement all methods with explicit columns and `RETURNING`. Use `helper.UUIDToPg` for UUID parameters and `helper.PgToUUID` for scans. `LockByID` uses `SELECT ... FOR UPDATE`. `Update` writes mutable fields including `version` and returns the updated row. `ListDue` filters `status = 'live' AND ends_at <= $1`.
 
 - [ ] **Step 7: Verify and commit**
 
@@ -340,19 +357,17 @@ git commit -m "feat(server): add domain models and user auction repositories"
 
 **Interfaces:**
 - Produces: `BidRepository.Insert(ctx, tx, bid) (domain.Bid, error)`
-- Produces: `BidRepository.FindByIdempotencyKey(ctx, tx, auctionID, userID int64, key uuid.UUID) (domain.Bid, error)`
-- Produces: `BidRepository.ListByAuction(ctx, tx, auctionID int64, beforeID *int64, limit int) ([]domain.BidView, error)`
+- Produces: `BidRepository.FindByIdempotencyKey(ctx, tx, auctionID, userID uuid.UUID, key uuid.UUID) (domain.Bid, error)`
+- Produces: `BidRepository.ListByAuction(ctx, tx, auctionID uuid.UUID, beforeID *uuid.UUID, limit int) ([]domain.BidView, error)`
 - Produces: `RefreshTokenRepository.Create(ctx, tx, token) (domain.RefreshToken, error)`
 - Produces: `RefreshTokenRepository.FindByHashForUpdate(ctx, tx, hash []byte) (domain.RefreshToken, error)`
-- Produces: `RefreshTokenRepository.Rotate(ctx, tx, oldID, newID int64, rotatedAt time.Time) error`
+- Produces: `RefreshTokenRepository.Rotate(ctx, tx, oldID, newID uuid.UUID, rotatedAt time.Time) error`
 - Produces: `RefreshTokenRepository.RevokeFamily(ctx, tx, familyID uuid.UUID, revokedAt time.Time) error`
 - Produces: `RefreshTokenRepository.DeleteExpired(ctx, tx, before time.Time) error`
 
-- [ ] **Step 1: Add UUID dependency**
+- [ ] **Step 1: Confirm UUID dependency**
 
-```powershell
-go get github.com/google/uuid@latest
-```
+`github.com/google/uuid` is already added in Task 2. No new dependency is needed.
 
 - [ ] **Step 2: Write failing bid repository tests**
 
@@ -361,6 +376,7 @@ Tests:
 - duplicate key on same auction returns the existing row;
 - same key on a different auction is allowed;
 - `ListByAuction` joins users for display names, orders by `id desc`, and honors `before_id`;
+- use explicit UUIDv7 values so the `id desc` ordering test is deterministic;
 - invalid auction ID returns a foreign key error.
 
 - [ ] **Step 3: Write failing refresh token repository tests**
@@ -374,7 +390,7 @@ Tests:
 
 - [ ] **Step 4: Implement both repositories**
 
-Use parameterized SQL and explicit scans. `FindByHashForUpdate` uses `SELECT ... FOR UPDATE`. `ListByAuction` joins `users` and returns `domain.BidView`.
+Use parameterized SQL and explicit scans. Use UUID helpers for IDs and nullable UUIDs. Use `RETURNING id` after inserting bids and refresh tokens. `FindByHashForUpdate` uses `SELECT ... FOR UPDATE`. `ListByAuction` joins `users` and returns `domain.BidView`.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -395,9 +411,9 @@ git commit -m "feat(server): add bid and refresh token repositories"
 - Create: `server/internal/auth/cookies_test.go`
 
 **Interfaces:**
-- Produces: `auth.Principal{UserID int64; Role domain.Role}`
+- Produces: `auth.Principal{UserID uuid.UUID; Role domain.Role}`
 - Produces: `auth.NewAccessTokens(secret, issuer, audience string, ttl time.Duration) *auth.AccessTokens`
-- Produces: `(*auth.AccessTokens).Issue(userID int64, role domain.Role) (string, error)`
+- Produces: `(*auth.AccessTokens).Issue(userID uuid.UUID, role domain.Role) (string, error)`
 - Produces: `(*auth.AccessTokens).Parse(raw string) (auth.Principal, error)`
 - Produces: `auth.GenerateRefreshToken() (raw string, hash []byte, error)`
 - Produces: `auth.HashRefreshToken(raw string) []byte`
@@ -415,7 +431,7 @@ go get github.com/golang-jwt/jwt/v5@latest
 - [ ] **Step 2: Write failing token tests**
 
 Access token tests:
-- issue and parse returns the same user ID and role;
+- issue and parse returns the same `uuid.UUID` user ID and role;
 - wrong secret fails;
 - expired token fails with `exception.ErrTokenExpired`;
 - malformed token fails with `exception.ErrTokenInvalid`.
@@ -427,7 +443,7 @@ Refresh token tests:
 
 - [ ] **Step 3: Implement access and refresh token helpers**
 
-Use `jwt.NewWithClaims(jwt.SigningMethodHS256, claims)`. Validate algorithm, issuer, audience, and expiry. Use `crypto/rand` with 32 bytes for refresh tokens. Hash with `sha256.Sum256`.
+Use `jwt.NewWithClaims(jwt.SigningMethodHS256, claims)`. Put the UUID user ID in `sub` as a string. Validate algorithm, issuer, audience, and expiry. Parse `sub` with `uuid.Parse`. Use `crypto/rand` with 32 bytes for refresh tokens. Hash with `sha256.Sum256`.
 
 - [ ] **Step 4: Write failing cookie tests**
 
@@ -458,7 +474,7 @@ git commit -m "feat(server): add access refresh tokens and cookies"
 **Interfaces:**
 - Produces: `web.RegisterRequest{Email, Password, DisplayName string}`
 - Produces: `web.LoginRequest{Email, Password string}`
-- Produces: `web.UserResponse{ID int64; Email, DisplayName, Role string}`
+- Produces: `web.UserResponse{ID uuid.UUID; Email, DisplayName, Role string}`
 - Produces: `web.AuthTokens{User web.UserResponse; AccessToken, RefreshToken string}`
 - Produces: `service.AuthService` interface for register, login, refresh, logout, and me.
 - Produces: `service.NewAuthService(users repository.UserRepository, refresh repository.RefreshTokenRepository, tx repository.TxManager, tokens *auth.AccessTokens, now func() time.Time, refreshTTL, grace time.Duration) service.AuthService`
@@ -466,7 +482,7 @@ git commit -m "feat(server): add access refresh tokens and cookies"
 - Produces: `service.AuthService.Login(ctx, req web.LoginRequest) (web.AuthTokens, error)`
 - Produces: `service.AuthService.Refresh(ctx, rawRefresh string) (web.AuthTokens, error)`
 - Produces: `service.AuthService.Logout(ctx, rawRefresh string) error`
-- Produces: `service.AuthService.Me(ctx, userID int64) (web.UserResponse, error)`
+- Produces: `service.AuthService.Me(ctx, userID uuid.UUID) (web.UserResponse, error)`
 
 - [ ] **Step 1: Add bcrypt and validator dependencies**
 
@@ -479,13 +495,14 @@ go get github.com/go-playground/validator/v10@latest
 
 Tests:
 - register hashes the password, creates a user with role `user`, creates one refresh token with a new family ID, and returns two tokens;
+- register returns the UUID generated by the database;
 - duplicate email returns `exception.ErrEmailTaken`;
 - login with wrong password returns `exception.ErrInvalidCredentials`;
 - login sets a new refresh family.
 
 - [ ] **Step 3: Implement register and login**
 
-Use `bcrypt.GenerateFromPassword` and `bcrypt.CompareHashAndPassword`. Normalize email to lowercase and trim. Validate with `validator`. Generate the refresh token, store `SHA-256`, set `expires_at = now + refreshTTL`, and issue the access token.
+Use `bcrypt.GenerateFromPassword` and `bcrypt.CompareHashAndPassword`. Normalize email to lowercase and trim. Validate with `validator`. Insert the user without an ID and use `RETURNING id` to get the UUID. Generate the refresh token, store `SHA-256`, set `expires_at = now + refreshTTL`, and issue the access token.
 
 - [ ] **Step 4: Write failing refresh rotation tests**
 
@@ -610,7 +627,15 @@ git commit -m "feat(server): add auth endpoints and middleware"
 - Produces: `auction.NextEndsAt(now, endsAt time.Time, extensions int) (time.Time, bool)`
 - Produces: `service.AuctionService` interface for read, admin lifecycle, and close-due use cases.
 - Produces: `service.NewAuctionService(auctions repository.AuctionRepository, bids repository.BidRepository, tx repository.TxManager, now func() time.Time) service.AuctionService`
-- Produces: `service.AuctionService.Current/Detail/Bids/Results/List/CreateDraft/Start/End/DeleteDraft`
+- Produces: `service.AuctionService.Current(ctx) (web.AuctionDetailResponse, error)`
+- Produces: `service.AuctionService.Detail(ctx, id uuid.UUID) (web.AuctionDetailResponse, error)`
+- Produces: `service.AuctionService.Bids(ctx, auctionID uuid.UUID, beforeID *uuid.UUID, limit int) ([]web.BidResponse, error)`
+- Produces: `service.AuctionService.Results(ctx, limit int) ([]web.ResultResponse, error)`
+- Produces: `service.AuctionService.List(ctx) ([]web.AuctionResponse, error)`
+- Produces: `service.AuctionService.CreateDraft(ctx, adminID uuid.UUID, req web.CreateAuctionRequest) (web.AuctionResponse, error)`
+- Produces: `service.AuctionService.Start(ctx, adminID uuid.UUID, id uuid.UUID) (web.AuctionResponse, error)`
+- Produces: `service.AuctionService.End(ctx, adminID uuid.UUID, id uuid.UUID) (web.AuctionResponse, error)`
+- Produces: `service.AuctionService.DeleteDraft(ctx, adminID uuid.UUID, id uuid.UUID) error`
 - Produces: `service.AuctionService.CloseDue(ctx) ([]domain.Auction, error)`
 - Produces: `controller.NewAuctionController(service service.AuctionService) *controller.AuctionController`
 - Produces: `controller.NewAdminController(service service.AuctionService) *controller.AdminController`
@@ -631,7 +656,7 @@ Keep `rules.go` free of database and HTTP dependencies. Use server time passed b
 
 - [ ] **Step 3: Write failing auction service tests**
 
-Tests:
+Use `uuid.New()` for fixture IDs. Tests:
 - create draft with normalized arrays and specs;
 - start draft sets live, starts_at, ends_at, version, and clears winner/final price;
 - start rejects when another auction is live;
@@ -640,7 +665,8 @@ Tests:
 - end with no bids sets winner nil and final price nil;
 - delete only draft;
 - current returns live or not found;
-- detail returns auction and recent bids;
+- detail returns auction and recent bids for a UUID;
+- detail with an unknown UUID returns `AUCTION_NOT_FOUND`;
 - results returns ended auctions ordered by ended_at desc;
 - `CloseDue` ends only live auctions with `ends_at <= now`.
 
@@ -662,7 +688,7 @@ POST   /api/admin/auctions/{id}/start
 POST   /api/admin/auctions/{id}/end
 DELETE /api/admin/auctions/{id}
 ```
-Apply `Auth` and `Admin` to admin routes. Return 204 for current when no live auction.
+Apply `Auth` and `Admin` to admin routes. Return 204 for current when no live auction. Parse every `{id}` and `before_id` with `uuid.Parse`; invalid UUID returns 422 `VALIDATION_ERROR`. Pass the admin UUID from `Principal` into service calls.
 
 - [ ] **Step 6: Verify and commit**
 
@@ -685,15 +711,15 @@ git commit -m "feat(server): add auction lifecycle endpoints"
 
 **Interfaces:**
 - Produces: `web.PlaceBidRequest{Amount int64; IdempotencyKey uuid.UUID}`
-- Produces: `web.PlaceBidResponse{Auction web.AuctionResponse; Bid web.BidResponse; Replay bool; Extended bool; PreviousHighestUserID *int64}`
+- Produces: `web.PlaceBidResponse{Auction web.AuctionResponse; Bid web.BidResponse; Replay bool; Extended bool; PreviousHighestUserID *uuid.UUID}`
 - Produces: `service.BidService` interface.
 - Produces: `service.NewBidService(auctions repository.AuctionRepository, bids repository.BidRepository, tx repository.TxManager, now func() time.Time) service.BidService`
-- Produces: `(service.BidService).PlaceBid(ctx, userID, auctionID int64, req web.PlaceBidRequest) (web.PlaceBidResponse, error)`
+- Produces: `(service.BidService).PlaceBid(ctx, userID, auctionID uuid.UUID, req web.PlaceBidRequest) (web.PlaceBidResponse, error)`
 
 - [ ] **Step 1: Write failing bid service tests**
 
 Tests:
-- first bid at starting price succeeds;
+- first bid at starting price succeeds using UUID auction and bidder IDs;
 - bid below minimum returns `BID_TOO_LOW` with the minimum value;
 - bidder already highest returns `ALREADY_HIGHEST`;
 - creator bidding returns `CREATOR_CANNOT_BID`;
@@ -722,7 +748,7 @@ After commit, return the updated auction and bid. Do not broadcast inside the se
 ```text
 POST /api/auctions/{id}/bids
 ```
-Require auth. Read `amount` and `idempotency_key` from JSON. Return 201 on success and 200 on replay. Apply the bid rate limiter.
+Require auth. Read `amount` and `idempotency_key` from JSON. Parse `{id}` with `uuid.Parse`; invalid UUID returns 422 `VALIDATION_ERROR`. Return 201 on success and 200 on replay. Apply the bid rate limiter.
 
 - [ ] **Step 4: Run concurrency tests**
 
@@ -755,12 +781,12 @@ git commit -m "feat(server): add transactional bidding"
 
 **Interfaces:**
 - Produces: `realtime.Snapshot{Epoch string; Seq int64; Version int64; ServerTime time.Time; Auction domain.Auction; Bids []domain.BidView; ViewerCount int}`
-- Produces: `realtime.Event{Type, AuctionID, Epoch string; Seq, Version int64; ServerTime time.Time; Payload any}`
-- Produces: `realtime.Client{UserID *int64; Send chan []byte}`
+- Produces: `realtime.Event{Type string; AuctionID uuid.UUID; Epoch string; Seq, Version int64; ServerTime time.Time; Payload any}`
+- Produces: `realtime.Client{UserID *uuid.UUID; Send chan []byte}`
 - Produces: `realtime.NewRoomManager() *RoomManager`
-- Produces: `(*RoomManager).Join(auctionID int64, userID *int64, fallback Snapshot) (*Client, Snapshot)`
-- Produces: `(*RoomManager).Leave(auctionID int64, client *Client)`
-- Produces: `(*RoomManager).PublishBid(auction domain.Auction, bid domain.BidView, previousHighestUserID *int64, extended bool)`
+- Produces: `(*RoomManager).Join(auctionID uuid.UUID, userID *uuid.UUID, fallback Snapshot) (*Client, Snapshot)`
+- Produces: `(*RoomManager).Leave(auctionID uuid.UUID, client *Client)`
+- Produces: `(*RoomManager).PublishBid(auction domain.Auction, bid domain.BidView, previousHighestUserID *uuid.UUID, extended bool)`
 - Produces: `(*RoomManager).PublishEnded(auction domain.Auction)`
 - Produces: `controller.NewWebSocketController(manager *realtime.RoomManager, auctions service.AuctionService) *controller.WebSocketController`
 - Produces: `(*controller.WebSocketController).ServeWS(w, r)`
@@ -775,13 +801,13 @@ go get github.com/coder/websocket@latest
 
 - [ ] **Step 2: Write failing room manager tests**
 
-Tests:
+Use `uuid.New()` for auction and user IDs. Tests:
 - join returns a snapshot with the current version;
 - publish bid increments seq once and all clients receive one event;
 - event with an older version is ignored;
-- outbid is sent only to the previous highest user ID;
+- outbid is sent only to the previous highest user UUID;
 - presence count updates on join and leave;
-- close code 4004 for unknown auction.
+- close code 4004 for an unknown or malformed auction UUID.
 
 - [ ] **Step 3: Implement room manager**
 
@@ -799,7 +825,7 @@ Use `httptest.NewServer` and `coder/websocket`:
 
 - [ ] **Step 5: Implement WebSocket controller**
 
-Accept with origin check. Parse optional access token cookie. Call `Join`, send the snapshot, start a writer goroutine, read frames only to detect close, and send pings every 20 seconds. Remove the client on exit. Wire the bid and admin controllers to call the room manager after a successful service commit.
+Parse `{id}` with `uuid.Parse`; malformed UUID gets close code 4004. Accept with origin check. Parse optional access token cookie and get the user UUID. Call `Join`, send the snapshot, start a writer goroutine, read frames only to detect close, and send pings every 20 seconds. Remove the client on exit. Wire the bid and admin controllers to call the room manager after a successful service commit.
 
 - [ ] **Step 6: Verify and commit**
 
@@ -824,7 +850,7 @@ git commit -m "feat(server): add realtime room and websocket"
 
 - [ ] **Step 1: Write failing scheduler tests**
 
-Tests:
+Use `uuid.New()` for auction IDs. Tests:
 - due live auction is ended and published;
 - not-due auction is untouched;
 - closing twice is idempotent;
@@ -881,13 +907,13 @@ Tests:
 
 - [ ] **Step 3: Implement logging, metrics, health, and seed**
 
-Use `slog.NewJSONHandler(os.Stdout, ...)`. Generate a request ID per request. Hash seed passwords with bcrypt. Do not hardcode real credentials.
+Use `slog.NewJSONHandler(os.Stdout, ...)`. Generate a request ID per request. Hash seed passwords with bcrypt. Insert seed rows without an ID and use `RETURNING id`; all IDs are UUID. Do not hardcode real credentials.
 
 - [ ] **Step 4: Implement load test**
 
 `loadtest/main.go` flags:
 - `-base-url`
-- `-auction-id`
+- `-auction-id` as a UUID string, parsed with `uuid.Parse`
 - `-viewers`
 - `-bidders`
 - `-rate`

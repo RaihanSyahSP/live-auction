@@ -16,7 +16,10 @@ Urutan tabel:
 1. `users`
 2. `auctions`
 3. `bids`
-4. index dan constraint
+4. `refresh_tokens`
+5. index dan constraint
+
+Semua primary key dan foreign key memakai tipe `uuid` dengan default `uuidv7()`. Default ini membutuhkan PostgreSQL 18. Jika memakai versi lebih lama, ganti ke `gen_random_uuid()`.
 
 Tool yang dipakai di plan:
 

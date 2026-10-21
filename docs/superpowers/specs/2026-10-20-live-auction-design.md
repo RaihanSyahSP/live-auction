@@ -188,7 +188,7 @@ Saat koneksi dibuka, server mengirim satu pesan:
   "seq": 42,
   "server_time": "2026-10-20T10:00:00.000Z",
   "auction": { "...": "..." },
-  "bids": [{ "id": 1, "display_name": "Raihan", "amount": 1500000, "created_at": "..." }],
+  "bids": [{ "id": "018f4c8e-6c2a-7d0e-9b1a-2f3c4d5e6f71", "display_name": "Raihan", "amount": 1500000, "created_at": "..." }],
   "viewer_count": 12
 }
 ```
@@ -202,7 +202,7 @@ Semua event memakai envelope:
 ```json
 {
   "type": "bid",
-  "auction_id": 1,
+  "auction_id": "018f4c8e-6c2a-7d0e-9b1a-2f3c4d5e6f70",
   "epoch": "uuid",
   "seq": 43,
   "server_time": "2026-10-20T10:00:05.000Z",
@@ -293,7 +293,7 @@ Ringkasan tabel:
 - `bids`: bid per auction dengan idempotency key per auction dan user.
 - `refresh_tokens`: hash refresh token, family rotasi, expiry, dan status revoked.
 
-Harga disimpan sebagai integer rupiah (`bigint`), bukan float. Satu lelang live dijaga partial unique index. Presence, `seq`, dan timer tidak disimpan di database.
+Semua primary key dan foreign key memakai `uuid` dengan default `uuidv7()` di PostgreSQL 18. Harga disimpan sebagai integer rupiah (`bigint`), bukan float. Satu lelang live dijaga partial unique index. Presence, `seq`, dan timer tidak disimpan di database.
 
 ## 10. API
 
@@ -363,7 +363,7 @@ Aturan:
 - Bid tidak pernah disiarkan sebelum commit DB berhasil.
 - Error domain selalu punya kode stabil; client memetakan kode ke pesan Indonesia.
 - Idempotent replay mengembalikan bid yang sudah ada, bukan error.
-- Jika unique constraint `(user_id, idempotency_key)` terlanggar karena race, server membaca bid yang ada dan mengembalikannya.
+- Jika unique constraint `(auction_id, user_id, idempotency_key)` terlanggar karena race, server membaca bid yang ada dan mengembalikannya.
 - WS hanya menerima snapshot/event; tidak ada error domain melalui socket selain close code.
 
 ## 12. Keamanan

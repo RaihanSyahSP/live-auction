@@ -21,7 +21,7 @@ Prototipe UI ruang lelang real-time untuk elektronik bekas, lengkap dengan login
 
 Kerangka ada di `server/`. Struktur mengikuti layer repo referensi `golang-restful`, tetapi memakai `net/http`, `pgx`, dan manual wiring.
 
-Auth backend memakai access token JWT 15 menit dan refresh token opaque 7 hari dengan rotasi. Keduanya disimpan di cookie `httpOnly`. Detail ada di spec backend.
+Auth backend memakai access token JWT 15 menit dan refresh token opaque 7 hari dengan rotasi. Keduanya disimpan di cookie `httpOnly`. Semua ID memakai `uuid` dengan default `uuidv7()` di PostgreSQL 18. Detail ada di spec backend.
 
 Mulai dari Task 1 di plan. Jangan menambahkan dependency sebelum task membutuhkannya.
 

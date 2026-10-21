@@ -24,11 +24,11 @@ server/
     service/          aturan bisnis auth, auction, bid, admin
     repository/       query PostgreSQL dan transaksi
     model/
-      domain/         entity User, Auction, Bid
+      domain/         entity User, Auction, Bid, RefreshToken
       web/            request dan response DTO
     middleware/       auth, admin, logging, recovery
     exception/        error domain dan mapping HTTP
-    helper/           JSON, parsing request, test helper
+    helper/           JSON, parsing request, UUID, test helper
     realtime/         WebSocket client, room manager, event envelope
     auction/          aturan lelang dan lifecycle room
   migrations/         SQL migration
@@ -48,6 +48,7 @@ Struktur layer mengikuti `D:\belajar-golang\golang-restful`, tetapi ada perbedaa
 - Error dikembalikan eksplisit, bukan panic/recover.
 - Tidak memakai ORM.
 - Auth memakai access token JWT 15 menit dan refresh token opaque 7 hari dengan rotasi. Keduanya disimpan di cookie `httpOnly`.
+- Semua primary key dan foreign key memakai `uuid` dengan default `uuidv7()` di PostgreSQL 18. Tidak ada ID `bigint`.
 
 ## Perintah
 

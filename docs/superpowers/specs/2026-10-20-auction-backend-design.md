@@ -40,7 +40,8 @@ Di luar scope:
 |---|---|
 | Bahasa | Go 1.26 |
 | Router | `net/http` dengan pattern method dan path |
-| Database | PostgreSQL, `pgx/v5` dan `pgxpool` |
+| Database | PostgreSQL 18, `pgx/v5` dan `pgxpool` |
+| ID | UUIDv7, default `uuidv7()`, semua primary key dan foreign key `uuid` |
 | Migration | `golang-migrate` |
 | WebSocket | `github.com/coder/websocket` |
 | Validasi request | `github.com/go-playground/validator/v10` |
@@ -106,7 +107,7 @@ Tanggung jawab:
 
 ```sql
 create table users (
-  id            bigint generated always as identity primary key,
+  id            uuid primary key default uuidv7(),
   email         text not null,
   password_hash text not null,
   display_name  text not null,
@@ -117,8 +118,8 @@ create table users (
 create unique index users_email_lower_idx on users (lower(email));
 
 create table auctions (
-  id                bigint generated always as identity primary key,
-  created_by        bigint not null references users(id),
+  id                uuid primary key default uuidv7(),
+  created_by        uuid not null references users(id),
   lot               text not null unique,
   title             text not null,
   subtitle          text not null default '',
@@ -131,14 +132,14 @@ create table auctions (
   min_increment     bigint not null check (min_increment > 0),
   duration_seconds  int not null check (duration_seconds between 60 and 3600),
   current_price     bigint not null check (current_price > 0),
-  highest_bidder_id bigint references users(id),
+  highest_bidder_id uuid references users(id),
   status            text not null default 'draft' check (status in ('draft', 'live', 'ended')),
   starts_at         timestamptz,
   ends_at           timestamptz,
   ended_at          timestamptz,
   extension_count   int not null default 0 check (extension_count between 0 and 5),
   version           bigint not null default 0,
-  winner_id         bigint references users(id),
+  winner_id         uuid references users(id),
   final_price       bigint check (final_price is null or final_price > 0),
   created_at        timestamptz not null default now(),
   check (status <> 'draft' or (starts_at is null and ends_at is null)),
@@ -154,9 +155,9 @@ create unique index one_live_auction
 create index auctions_status_created_idx on auctions (status, created_at desc);
 
 create table bids (
-  id              bigint generated always as identity primary key,
-  auction_id      bigint not null references auctions(id),
-  user_id         bigint not null references users(id),
+  id              uuid primary key default uuidv7(),
+  auction_id      uuid not null references auctions(id),
+  user_id         uuid not null references users(id),
   amount          bigint not null check (amount > 0),
   idempotency_key uuid not null,
   created_at      timestamptz not null default now()
@@ -169,14 +170,14 @@ create index bids_auction_idx on bids (auction_id, id desc);
 create index bids_user_idx on bids (user_id, id desc);
 
 create table refresh_tokens (
-  id             bigint generated always as identity primary key,
-  user_id        bigint not null references users(id) on delete cascade,
+  id             uuid primary key default uuidv7(),
+  user_id        uuid not null references users(id) on delete cascade,
   family_id      uuid not null,
   token_hash     bytea not null unique,
   expires_at     timestamptz not null,
   created_at     timestamptz not null default now(),
   rotated_at     timestamptz,
-  replaced_by_id bigint references refresh_tokens(id),
+  replaced_by_id uuid references refresh_tokens(id),
   revoked_at     timestamptz
 );
 
@@ -187,6 +188,9 @@ create index refresh_tokens_expires_idx on refresh_tokens (expires_at);
 
 Catatan:
 
+- Semua primary key dan foreign key memakai tipe native `uuid`, bukan `bigint`, `text`, atau `varchar(36)`.
+- Default `uuidv7()` membutuhkan PostgreSQL 18. Jika memakai versi lebih lama, ganti default menjadi `gen_random_uuid()`.
+- UUIDv7 dipilih karena berurutan menurut waktu. `order by id desc` pada bids masih mendekati urutan insert. Jika butuh urutan ketat, gunakan `created_at, id`.
 - `current_price` adalah harga tertinggi yang sudah commit.
 - `version` naik setiap perubahan state lelang dan dipakai untuk mengurutkan event realtime.
 - `highest_bidder_id` dan `winner_id` memakai user ID, bukan nama.
@@ -200,7 +204,7 @@ Catatan:
 
 - Format JWT HS256.
 - Umur 15 menit.
-- Claims: `sub` user ID, `role`, `iat`, `exp`, `iss` = `live-auction`, `aud` = `live-auction-web`.
+- Claims: `sub` berisi UUID user dalam bentuk string, `role`, `iat`, `exp`, `iss` = `live-auction`, `aud` = `live-auction-web`.
 - Secret dari `JWT_SECRET`, minimal 32 byte.
 - Disimpan di cookie `access_token`.
 - Cookie: `Path=/`, `HttpOnly`, `SameSite=Lax`, `Secure` mengikuti environment.
@@ -283,6 +287,8 @@ Success response mengembalikan payload langsung. Error memakai envelope:
 | GET | `/api/results?limit=20` | Daftar lelang ended, pemenang, harga akhir. |
 | POST | `/api/auctions/{id}/bids` | Body amount dan idempotency_key. 201 atau 200 untuk replay. |
 
+Semua `{id}`, `before_id`, dan ID di response adalah UUID string. Format UUID yang tidak valid menghasilkan `VALIDATION_ERROR` 422.
+
 ### 6.2 Admin
 
 | Method | Path | Keterangan |
@@ -351,7 +357,7 @@ Event:
 ```json
 {
   "type": "bid",
-  "auction_id": 1,
+  "auction_id": "018f4c8e-6c2a-7d0e-9b1a-2f3c4d5e6f70",
   "epoch": "uuid",
   "seq": 43,
   "version": 18,
@@ -370,9 +376,11 @@ Tipe event:
 
 Aturan:
 
+- `auction_id` adalah UUID string.
 - `seq` naik per event room.
 - `version` berasal dari kolom `auctions.version`.
 - Room mengabaikan event dengan `version` lebih kecil atau sama dengan versi terakhir.
+- Auction ID yang malformed atau tidak ada ditutup dengan close code 4004.
 - Reconnect selalu meminta snapshot baru.
 - Heartbeat ping setiap 20 detik, pong timeout 10 detik.
 - Client reconnect dengan exponential backoff 0.5 detik sampai 8 detik.
@@ -541,7 +549,9 @@ migrate -path migrations -database "$env:DATABASE_URL" up
 ## 15. Global constraints
 
 - Go 1.26.
+- PostgreSQL 18 untuk default `uuidv7()`.
 - Tanpa ORM, Wire, httprouter, atau lib/pq.
+- Semua primary key dan foreign key bertipe `uuid`. Tidak ada ID `bigint`.
 - Semua harga integer rupiah.
 - Semua timestamp UTC.
 - Access token 15 menit, refresh token 7 hari.
