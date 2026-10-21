@@ -10,7 +10,7 @@ import (
 )
 
 type RefreshTokenRepository interface {
-	Create(ctx context.Context, tx pgx.Tx, token string) (domain.RefreshToken, error)
+	Create(ctx context.Context, tx pgx.Tx, token domain.RefreshToken) (domain.RefreshToken, error)
 	FindByHashForUpdate(ctx context.Context, tx pgx.Tx, hash []byte) (domain.RefreshToken, error)
 	Rotate(ctx context.Context, tx pgx.Tx, oldID uuid.UUID, newID uuid.UUID, rotatedAt time.Time) (domain.RefreshToken, error)
 	RevokeFamily(ctx context.Context, tx pgx.Tx, familyID uuid.UUID, revokedAt time.Time) error

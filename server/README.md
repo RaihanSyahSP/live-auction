@@ -64,3 +64,15 @@ go run ./cmd/seed
 `cmd/api` memuat `.env` lokal secara otomatis lewat `godotenv`. File `.env` tidak di-commit. Di production, gunakan environment dari platform.
 
 Dependency ditambahkan mengikuti plan. Saat ini `godotenv` dipakai untuk loader `.env` lokal dan `pgx/v5` untuk koneksi PostgreSQL.
+
+## Test Repository
+
+Test repository memakai `TEST_DATABASE_URL` dan transaksi yang selalu di-rollback. Kalau variabel itu kosong, test repository di-skip.
+
+```powershell
+$env:TEST_DATABASE_URL="postgres://postgres:root@localhost:5432/live_auction_test?sslmode=disable"
+migrate -path migrations -database $env:TEST_DATABASE_URL up
+go test ./...
+```
+
+Gunakan database test, jangan database development atau production.
