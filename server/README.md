@@ -63,4 +63,4 @@ go run ./cmd/seed
 
 `cmd/api` memuat `.env` lokal secara otomatis lewat `godotenv`. File `.env` tidak di-commit. Di production, gunakan environment dari platform.
 
-Dependency ditambahkan mengikuti plan. Saat ini `godotenv` sudah ada untuk loader `.env` lokal.
+Dependency ditambahkan mengikuti plan. Saat ini `godotenv` dipakai untuk loader `.env` lokal dan `pgx/v5` untuk koneksi PostgreSQL.

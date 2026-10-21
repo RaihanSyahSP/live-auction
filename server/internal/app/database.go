@@ -1,23 +1,37 @@
 package app
 
 import (
-	"database/sql"
+	"context"
+	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"live-auction/server/internal/config"
 )
 
-func NewDB() *sql.DB {
-	connStr := "host=localhost port=5432 user=postgres password=root dbname=live_auction sslmode=disable"
-
-	db, err := sql.Open("postgres", connStr)
-
+func NewDB(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
+	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("parse database URL: %w", err)
 	}
 
-	db.SetMaxIdleConns(5)
-	db.SetMaxOpenConns(20)
-	db.SetConnMaxLifetime(60 * time.Minute)
-	db.SetConnMaxIdleTime(10 * time.Minute)
+	poolConfig.MaxConns = 20
+	poolConfig.MaxConnLifetime = time.Hour
+	poolConfig.MaxConnIdleTime = 10 * time.Minute
 
-	return db
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create database pool: %w", err)
+	}
+
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := pool.Ping(pingCtx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping database: %w", err)
+	}
+
+	return pool, nil
 }
