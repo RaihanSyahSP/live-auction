@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"live-auction/server/internal/app"
 	"live-auction/server/internal/config"
 	"live-auction/server/internal/controller"
@@ -18,6 +20,10 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
+
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		slog.Warn("load .env", "error", err)
+	}
 
 	cfg, err := config.Load()
 	if err != nil {

@@ -52,6 +52,8 @@ Struktur layer mengikuti `D:\belajar-golang\golang-restful`, tetapi ada perbedaa
 
 ## Perintah
 
+Jalankan dari folder `server` agar `.env` ditemukan.
+
 ```powershell
 go build ./...
 go test ./...
@@ -59,4 +61,6 @@ go run ./cmd/api
 go run ./cmd/seed
 ```
 
-Dependency belum ditambahkan ke `go.mod`. Ikuti plan untuk menambahkan satu per satu saat task membutuhkannya.
+`cmd/api` memuat `.env` lokal secara otomatis lewat `godotenv`. File `.env` tidak di-commit. Di production, gunakan environment dari platform.
+
+Dependency ditambahkan mengikuti plan. Saat ini `godotenv` sudah ada untuk loader `.env` lokal.

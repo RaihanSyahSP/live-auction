@@ -163,6 +163,8 @@ mux.HandleFunc("GET /healthz", health.Health)
 ```
 `NewServer` sets `ReadHeaderTimeout`, `IdleTimeout`, and `Addr` from config. `cmd/api/main.go` loads config, builds the router, logs the address, and calls `ListenAndServe` with graceful shutdown on `os.Interrupt`.
 
+For local development, add `github.com/joho/godotenv` and call `godotenv.Load()` before `config.Load()`. A missing `.env` is ignored; an invalid `.env` logs a warning. Production must use environment variables from the platform, not `.env`.
+
 - [ ] **Step 7: Verify and commit**
 
 ```powershell
