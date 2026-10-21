@@ -1,7 +1,7 @@
 package auth_request
 
 type RegisterRequest struct {
-	Email       string `json:"email"`
-	Password    string `json:"password"`
-	DisplayName string `json:"display_name,omitempty" validate:"omitempty,min=3,max=50"`
+	Email       string `json:"email" validate:"required,email"`
+	Password    string `json:"password" validate:"required,min=8,max=72"`
+	DisplayName string `json:"display_name" validate:"required,min=3,max=50"`
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type TxMananager interface {
+type TxManager interface {
 	WithinTx(ctx context.Context, fn func(pgx.Tx) error) error
 }
 
