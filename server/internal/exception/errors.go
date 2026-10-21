@@ -8,4 +8,6 @@ var (
 	ErrBidNotFound          = errors.New("bid not found")
 	ErrBidAlreadyExists     = errors.New("bid already exists")
 	ErrRefreshTokenNotFound = errors.New("refresh token not found")
+	ErrTokenExpired         = errors.New("token expired")
+	ErrTokenInvalid         = errors.New("token invalid")
 )
