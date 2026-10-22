@@ -15,4 +15,7 @@ var (
 	ErrRefreshInvalid       = errors.New("refresh token invalid")
 	ErrRefreshReused        = errors.New("refresh token reused")
 	ErrRefreshRace          = errors.New("refresh token race")
+	ErrUnauthenticated      = errors.New("unauthenticated")
+	ErrForbidden            = errors.New("forbidden")
+	ErrRateLimited          = errors.New("rate limited")
 )
