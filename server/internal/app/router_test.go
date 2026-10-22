@@ -11,7 +11,9 @@ import (
 )
 
 func TestRouterHealthz(t *testing.T) {
-	router := app.NewRouter(controller.NewHealthController())
+	router := app.NewRouter(app.RouterDeps{
+		Health: controller.NewHealthController(),
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
