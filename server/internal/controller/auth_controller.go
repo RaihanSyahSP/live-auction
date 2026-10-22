@@ -51,6 +51,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		exception.WriteError(w, err)
+		return
 	}
 
 	c.cookies.Set(w, result.AccessToken, result.RefreshToken)
