@@ -19,6 +19,8 @@ import (
 	"live-auction/server/internal/controller"
 	"live-auction/server/internal/middleware"
 	"live-auction/server/internal/repository"
+	auctionrepo "live-auction/server/internal/repository/auction"
+	bidrepo "live-auction/server/internal/repository/bid"
 	refreshrepo "live-auction/server/internal/repository/refresh_token"
 	userrepo "live-auction/server/internal/repository/user"
 	"live-auction/server/internal/service"
@@ -51,6 +53,8 @@ func main() {
 	userRepository := userrepo.NewUserRepositoryImpl()
 	refreshRepository := refreshrepo.NewRefreshTokenRepositoryImpl()
 	txManager := repository.NewTxManager(pool)
+	bidRepository := bidrepo.NewBidRepositoryImpl()
+	auctionRepository := auctionrepo.NewAuctionRepositoryImpl()
 
 	accessTokens := auth.NewAccessTokens(
 		[]byte(cfg.JWTSecret),
@@ -74,6 +78,15 @@ func main() {
 		cfg.RefreshGracePeriod,
 	)
 
+	auctionService := service.NewAuctionService(
+		auctionRepository,
+		bidRepository,
+		txManager,
+		time.Now,
+	)
+
+	auctionController := controller.NewAuctionController(auctionService)
+	adminController := controller.NewAdminController(auctionService)
 	authController := controller.NewAuthController(authService, cookies)
 
 	loginLimiter := middleware.NewRateLimiter(
@@ -92,6 +105,8 @@ func main() {
 		AllowedOrigin:  cfg.AppOrigin,
 		LoginLimiter:   loginLimiter,
 		RefreshLimiter: refreshLimiter,
+		Auction:        auctionController,
+		Admin:          adminController,
 	})
 	server := app.NewServer(cfg, handler)
 

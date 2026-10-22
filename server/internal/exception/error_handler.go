@@ -51,6 +51,14 @@ func mapError(err error) (int, string, string) {
 		return http.StatusConflict, "REFRESH_RACE", "Refresh token sedang diproses"
 	case errors.Is(err, ErrRateLimited):
 		return http.StatusTooManyRequests, "RATE_LIMITED", "Terlalu banyak percobaan"
+	case errors.Is(err, ErrAuctionNotFound):
+		return http.StatusNotFound, "AUCTION_NOT_FOUND", "Lelang tidak ditemukan"
+	case errors.Is(err, ErrAuctionNotDraft):
+		return http.StatusConflict, "AUCTION_NOT_DRAFT", "Lelang bukan draft"
+	case errors.Is(err, ErrAuctionNotLive):
+		return http.StatusConflict, "AUCTION_NOT_LIVE", "Lelang tidak sedang live"
+	case errors.Is(err, ErrAuctionAlreadyLive):
+		return http.StatusConflict, "AUCTION_ALREADY_LIVE", "Masih ada lelang lain yang live"
 	default:
 		return http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan"
 	}
