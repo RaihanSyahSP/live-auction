@@ -18,4 +18,8 @@ var (
 	ErrUnauthenticated      = errors.New("unauthenticated")
 	ErrForbidden            = errors.New("forbidden")
 	ErrRateLimited          = errors.New("rate limited")
+	ErrAuctionNotFound      = errors.New("auction not found")
+	ErrAuctionNotDraft      = errors.New("auction is not draft")
+	ErrAuctionNotLive       = errors.New("auction is not live")
+	ErrAuctionAlreadyLive   = errors.New("another auction is already live")
 )
