@@ -85,9 +85,17 @@ func main() {
 		time.Now,
 	)
 
+	bidService := service.NewBidService(
+		auctionRepository,
+		bidRepository,
+		txManager,
+		time.Now,
+	)
+
 	auctionController := controller.NewAuctionController(auctionService)
 	adminController := controller.NewAdminController(auctionService)
 	authController := controller.NewAuthController(authService, cookies)
+	bidController := controller.NewBidController(bidService)
 
 	loginLimiter := middleware.NewRateLimiter(
 		rate.Every(6*time.Second), // 10 per menit
@@ -98,6 +106,8 @@ func main() {
 		30,
 	)
 
+	bidLimiter := middleware.NewRateLimiter(rate.Limit(3), 5)
+
 	handler := app.NewRouter(app.RouterDeps{
 		Health:         controller.NewHealthController(),
 		Auth:           authController,
@@ -107,6 +117,8 @@ func main() {
 		RefreshLimiter: refreshLimiter,
 		Auction:        auctionController,
 		Admin:          adminController,
+		Bid:            bidController,
+		BidLimiter:     bidLimiter,
 	})
 	server := app.NewServer(cfg, handler)
 

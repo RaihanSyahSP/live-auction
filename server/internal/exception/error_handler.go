@@ -59,6 +59,16 @@ func mapError(err error) (int, string, string) {
 		return http.StatusConflict, "AUCTION_NOT_LIVE", "Lelang tidak sedang live"
 	case errors.Is(err, ErrAuctionAlreadyLive):
 		return http.StatusConflict, "AUCTION_ALREADY_LIVE", "Masih ada lelang lain yang live"
+	case errors.Is(err, ErrBidTooLow):
+		return http.StatusUnprocessableEntity, "BID_TOO_LOW", "Bid di bawah harga minimum"
+	case errors.Is(err, ErrAlreadyHighest):
+		return http.StatusConflict, "ALREADY_HIGHEST", "Kamu sudah menjadi penawar tertinggi"
+	case errors.Is(err, ErrCreatorCannotBid):
+		return http.StatusForbidden, "CREATOR_CANNOT_BID", "Pembuat lelang tidak boleh bid"
+	case errors.Is(err, ErrInvalidAmount):
+		return http.StatusUnprocessableEntity, "INVALID_AMOUNT", "Nominal bid tidak valid"
+	case errors.Is(err, ErrIdempotencyConflict):
+		return http.StatusConflict, "IDEMPOTENCY_CONFLICT", "Idempotency key sudah dipakai untuk nominal berbeda"
 	default:
 		return http.StatusInternalServerError, "INTERNAL", "Terjadi kesalahan"
 	}

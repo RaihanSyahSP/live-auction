@@ -17,6 +17,8 @@ type RouterDeps struct {
 	RefreshLimiter *middleware.RateLimiter
 	Auction        *controller.AuctionController
 	Admin          *controller.AdminController
+	Bid            *controller.BidController
+	BidLimiter     *middleware.RateLimiter
 }
 
 func NewRouter(deps RouterDeps) http.Handler {
@@ -56,6 +58,21 @@ func NewRouter(deps RouterDeps) http.Handler {
 		mux.Handle("POST /api/admin/auctions/{id}/start", adminStateChange(http.HandlerFunc(deps.Admin.Start)))
 		mux.Handle("POST /api/admin/auctions/{id}/end", adminStateChange(http.HandlerFunc(deps.Admin.End)))
 		mux.Handle("DELETE /api/admin/auctions/{id}", adminStateChange(http.HandlerFunc(deps.Admin.Delete)))
+	}
+
+	if deps.Bid != nil && deps.AccessTokens != nil {
+		bidHandler := middleware.RateLimit(
+			deps.BidLimiter,
+			middleware.UserID,
+			http.HandlerFunc(deps.Bid.PlaceBid),
+		)
+		mux.Handle(
+			"POST /api/auctions/{id}/bids",
+			middleware.Origin(
+				deps.AllowedOrigin,
+				middleware.Auth(deps.AccessTokens, bidHandler),
+			),
+		)
 	}
 
 	register := http.HandlerFunc(deps.Auth.Register)

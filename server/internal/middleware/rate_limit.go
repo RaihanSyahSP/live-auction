@@ -65,3 +65,11 @@ func ClientIP(r *http.Request) string {
 	}
 	return host
 }
+
+func UserID(r *http.Request) string {
+	principal, ok := PrincipalFrom(r.Context())
+	if !ok {
+		return ClientIP(r)
+	}
+	return principal.UserID.String()
+}
