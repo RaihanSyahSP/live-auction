@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"live-auction/server/internal/metrics"
 	"live-auction/server/internal/model/web/auction_response"
 	"sync"
 	"time"
@@ -9,16 +10,21 @@ import (
 )
 
 type RoomManager struct {
-	mu    sync.Mutex
-	rooms map[uuid.UUID]*Room
-	now   func() time.Time
+	mu      sync.Mutex
+	rooms   map[uuid.UUID]*Room
+	now     func() time.Time
+	metrics *metrics.Metrics
 }
 
-func NewRoomManager() *RoomManager {
-	return &RoomManager{
+func NewRoomManager(instrument ...*metrics.Metrics) *RoomManager {
+	m := &RoomManager{
 		rooms: make(map[uuid.UUID]*Room),
 		now:   time.Now,
 	}
+	if len(instrument) > 0 {
+		m.metrics = instrument[0]
+	}
+	return m
 }
 
 func (m *RoomManager) Join(
@@ -43,6 +49,7 @@ func (m *RoomManager) Join(
 		Send:   make(chan []byte, 32),
 	}
 	room.clients[client] = struct{}{}
+	m.metrics.SetConnectedClients(auctionID.String(), len(room.clients))
 
 	snapshot := Snapshot{
 		Type:        "snapshot",
@@ -76,6 +83,7 @@ func (m *RoomManager) Leave(auctionID uuid.UUID, client *Client) {
 
 	delete(room.clients, client)
 	close(client.Send)
+	m.metrics.SetConnectedClients(auctionID.String(), len(room.clients))
 
 	m.publishPresenceLocked(room, auctionID)
 }
@@ -113,6 +121,8 @@ func (m *RoomManager) PublishBid(
 		return
 	}
 
+	started := time.Now()
+
 	room.version = auction.Version
 	room.auction = auction
 	room.bids = append([]auction_response.BidResponse{bid}, room.bids...)
@@ -146,6 +156,8 @@ func (m *RoomManager) PublishBid(
 		})
 		room.broadcast(extendedEvent)
 	}
+
+	m.metrics.ObserveBroadcast(time.Since(started))
 }
 
 func (m *RoomManager) PublishEnded(auction auction_response.AuctionResponse) {

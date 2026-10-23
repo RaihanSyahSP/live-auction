@@ -2,11 +2,13 @@ package controller
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
 	"live-auction/server/internal/exception"
 	"live-auction/server/internal/helper"
+	"live-auction/server/internal/metrics"
 	"live-auction/server/internal/middleware"
 	"live-auction/server/internal/model/web/bid_request"
 	"live-auction/server/internal/realtime"
@@ -16,10 +18,19 @@ import (
 type BidController struct {
 	bidService service.BidService
 	rooms      *realtime.RoomManager
+	instrument *metrics.Metrics
 }
 
-func NewBidController(bidService service.BidService, rooms *realtime.RoomManager) *BidController {
-	return &BidController{bidService: bidService, rooms: rooms}
+func NewBidController(
+	bidService service.BidService,
+	rooms *realtime.RoomManager,
+	instrument ...*metrics.Metrics,
+) *BidController {
+	c := &BidController{bidService: bidService, rooms: rooms}
+	if len(instrument) > 0 {
+		c.instrument = instrument[0]
+	}
+	return c
 }
 
 func (c *BidController) PlaceBid(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +52,8 @@ func (c *BidController) PlaceBid(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	started := time.Now()
+
 	result, err := c.bidService.PlaceBid(
 		r.Context(),
 		principal.UserID,
@@ -48,9 +61,16 @@ func (c *BidController) PlaceBid(w http.ResponseWriter, r *http.Request) {
 		req,
 	)
 	if err != nil {
+		c.instrument.ObserveBid("error", time.Since(started))
 		exception.WriteError(w, err)
 		return
 	}
+
+	resultLabel := "success"
+	if result.Replay {
+		resultLabel = "replay"
+	}
+	c.instrument.ObserveBid(resultLabel, time.Since(started))
 
 	status := http.StatusCreated
 	if result.Replay {

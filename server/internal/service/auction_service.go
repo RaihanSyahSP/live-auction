@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"live-auction/server/internal/exception"
+	"live-auction/server/internal/metrics"
 	"live-auction/server/internal/model/domain"
 	"live-auction/server/internal/model/web/auction_request"
 	"live-auction/server/internal/model/web/auction_response"
@@ -40,6 +41,7 @@ type auctionService struct {
 	tx       repository.TxManager
 	now      func() time.Time
 	validate *validator.Validate
+	metrics  *metrics.Metrics
 }
 
 // Bids implements [AuctionService].
@@ -246,6 +248,10 @@ func (s *auctionService) End(ctx context.Context, adminID uuid.UUID, id uuid.UUI
 		return nil
 	})
 
+	if err == nil {
+		s.metrics.SetLiveAuctions(0)
+	}
+
 	return result, err
 }
 
@@ -328,6 +334,10 @@ func (s *auctionService) Start(ctx context.Context, adminID uuid.UUID, id uuid.U
 		return nil
 	})
 
+	if err == nil {
+		s.metrics.SetLiveAuctions(1)
+	}
+
 	return result, err
 }
 
@@ -336,17 +346,22 @@ func NewAuctionService(
 	bids bidrepo.BidRepository,
 	tx repository.TxManager,
 	now func() time.Time,
+	instrument ...*metrics.Metrics,
 ) AuctionService {
 	if now == nil {
 		now = time.Now
 	}
-	return &auctionService{
+	service := &auctionService{
 		auctions: auctions,
 		bids:     bids,
 		tx:       tx,
 		now:      now,
 		validate: validator.New(),
 	}
+	if len(instrument) > 0 {
+		service.metrics = instrument[0]
+	}
+	return service
 }
 
 func isOneLiveViolation(err error) bool {

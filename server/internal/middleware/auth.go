@@ -29,7 +29,14 @@ func Auth(tokens *auth.AccessTokens, next http.Handler) http.Handler {
 }
 
 func WithPrincipal(ctx context.Context, principal auth.Principal) context.Context {
-	return context.WithValue(ctx, principalContextKey{}, principal)
+	ctx = context.WithValue(ctx, principalContextKey{}, principal)
+
+	if meta := logMetaFrom(ctx); meta != nil {
+		userID := principal.UserID
+		meta.UserID = &userID
+	}
+
+	return ctx
 }
 
 func PrincipalFrom(ctx context.Context) (auth.Principal, bool) {

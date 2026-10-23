@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,9 +11,15 @@ import (
 	"live-auction/server/internal/controller"
 )
 
+type routerHealthChecker struct{}
+
+func (routerHealthChecker) Ping(ctx context.Context) error {
+	return nil
+}
+
 func TestRouterHealthz(t *testing.T) {
 	router := app.NewRouter(app.RouterDeps{
-		Health: controller.NewHealthController(),
+		Health: controller.NewHealthController(routerHealthChecker{}),
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -24,6 +31,27 @@ func TestRouterHealthz(t *testing.T) {
 	}
 	if got := rec.Header().Get("Content-Type"); got != "application/json" {
 		t.Errorf("Content-Type = %q, want application/json", got)
+	}
+}
+
+func TestRouterMetrics(t *testing.T) {
+	metricsCalled := false
+	router := app.NewRouter(app.RouterDeps{
+		Metrics: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			metricsCalled = true
+			w.WriteHeader(http.StatusOK)
+		}),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !metricsCalled {
+		t.Error("metrics handler was not called")
 	}
 }
 

@@ -20,6 +20,7 @@ type RouterDeps struct {
 	Bid            *controller.BidController
 	BidLimiter     *middleware.RateLimiter
 	WebSocket      *controller.WebSocketController
+	Metrics        http.Handler
 }
 
 func NewRouter(deps RouterDeps) http.Handler {
@@ -27,6 +28,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	if deps.Health != nil {
 		mux.HandleFunc("GET /healthz", deps.Health.Health)
+	}
+
+	if deps.Metrics != nil {
+		mux.Handle("GET /metrics", deps.Metrics)
 	}
 
 	if deps.Auth == nil {

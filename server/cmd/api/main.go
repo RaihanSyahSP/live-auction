@@ -17,6 +17,7 @@ import (
 	"live-auction/server/internal/auth"
 	"live-auction/server/internal/config"
 	"live-auction/server/internal/controller"
+	"live-auction/server/internal/metrics"
 	"live-auction/server/internal/middleware"
 	"live-auction/server/internal/realtime"
 	"live-auction/server/internal/repository"
@@ -82,11 +83,14 @@ func main() {
 		cfg.RefreshGracePeriod,
 	)
 
+	instrument := metrics.New()
+
 	auctionService := service.NewAuctionService(
 		auctionRepository,
 		bidRepository,
 		txManager,
 		time.Now,
+		instrument,
 	)
 
 	bidService := service.NewBidService(
@@ -96,7 +100,7 @@ func main() {
 		time.Now,
 	)
 
-	rooms := realtime.NewRoomManager()
+	rooms := realtime.NewRoomManager(instrument)
 
 	scheduler := app.NewScheduler(auctionService, rooms, time.Second, time.Now)
 
@@ -108,6 +112,10 @@ func main() {
 	}
 	cancelStartup()
 
+	if _, err := auctionService.Current(ctx); err == nil {
+		instrument.SetLiveAuctions(1)
+	}
+
 	wsController := controller.NewWebSocketController(
 		rooms,
 		auctionService,
@@ -116,8 +124,8 @@ func main() {
 	)
 	auctionController := controller.NewAuctionController(auctionService)
 	adminController := controller.NewAdminController(auctionService, rooms)
-	authController := controller.NewAuthController(authService, cookies)
-	bidController := controller.NewBidController(bidService, rooms)
+	authController := controller.NewAuthController(authService, cookies, instrument)
+	bidController := controller.NewBidController(bidService, rooms, instrument)
 
 	loginLimiter := middleware.NewRateLimiter(
 		rate.Every(6*time.Second), // 10 per menit
@@ -131,7 +139,7 @@ func main() {
 	bidLimiter := middleware.NewRateLimiter(rate.Limit(3), 5)
 
 	handler := app.NewRouter(app.RouterDeps{
-		Health:         controller.NewHealthController(),
+		Health:         controller.NewHealthController(pool),
 		Auth:           authController,
 		AccessTokens:   accessTokens,
 		AllowedOrigin:  cfg.AppOrigin,
@@ -142,7 +150,9 @@ func main() {
 		WebSocket:      wsController,
 		Bid:            bidController,
 		BidLimiter:     bidLimiter,
+		Metrics:        instrument.Handler(),
 	})
+	handler = middleware.Logging(logger, handler)
 	server := app.NewServer(cfg, handler)
 
 	go scheduler.Run(ctx)

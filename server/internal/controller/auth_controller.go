@@ -4,6 +4,7 @@ import (
 	"live-auction/server/internal/auth"
 	"live-auction/server/internal/exception"
 	"live-auction/server/internal/helper"
+	"live-auction/server/internal/metrics"
 	"live-auction/server/internal/middleware"
 	"live-auction/server/internal/model/web/auth_request"
 	"live-auction/server/internal/service"
@@ -13,13 +14,22 @@ import (
 type AuthController struct {
 	authService service.AuthService
 	cookies     auth.Cookies
+	instrument  *metrics.Metrics
 }
 
-func NewAuthController(authService service.AuthService, cookies auth.Cookies) *AuthController {
-	return &AuthController{
+func NewAuthController(
+	authService service.AuthService,
+	cookies auth.Cookies,
+	instrument ...*metrics.Metrics,
+) *AuthController {
+	c := &AuthController{
 		authService: authService,
 		cookies:     cookies,
 	}
+	if len(instrument) > 0 {
+		c.instrument = instrument[0]
+	}
+	return c
 }
 
 func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
@@ -50,10 +60,12 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	result, err := c.authService.Login(r.Context(), req)
 
 	if err != nil {
+		c.instrument.ObserveLogin("error")
 		exception.WriteError(w, err)
 		return
 	}
 
+	c.instrument.ObserveLogin("success")
 	c.cookies.Set(w, result.AccessToken, result.RefreshToken)
 	helper.WriteJSON(w, http.StatusOK, result.User)
 }
@@ -61,17 +73,20 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	rawRefresh, err := refreshCookie(r)
 	if err != nil {
+		c.instrument.ObserveRefresh("error")
 		exception.WriteError(w, exception.ErrRefreshInvalid)
 		return
 	}
 
 	result, err := c.authService.Refresh(r.Context(), rawRefresh)
 	if err != nil {
+		c.instrument.ObserveRefresh("error")
 		c.cookies.Clear(w)
 		exception.WriteError(w, err)
 		return
 	}
 
+	c.instrument.ObserveRefresh("success")
 	c.cookies.Set(w, result.AccessToken, result.RefreshToken)
 	helper.WriteJSON(w, http.StatusOK, result.User)
 }
