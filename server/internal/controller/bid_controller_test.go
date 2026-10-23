@@ -18,6 +18,7 @@ import (
 	"live-auction/server/internal/model/web/auction_response"
 	"live-auction/server/internal/model/web/bid_request"
 	"live-auction/server/internal/model/web/bid_response"
+	"live-auction/server/internal/realtime"
 )
 
 type fakeBidService struct {
@@ -66,7 +67,7 @@ func TestBidControllerPlaceBid(t *testing.T) {
 			Bid:     bidResponseForTest(),
 		},
 	}
-	handler := controller.NewBidController(svc)
+	handler := controller.NewBidController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/auctions/"+uuid.NewString()+"/bids",
@@ -83,6 +84,55 @@ func TestBidControllerPlaceBid(t *testing.T) {
 	}
 }
 
+func TestBidControllerPublishesBidEvent(t *testing.T) {
+	auctionID := uuid.New()
+	bid := bidResponseForTest()
+	bid.AuctionID = auctionID
+	auction := auctionResponseForTest()
+	auction.ID = auctionID
+	auction.Version = 1
+
+	svc := &fakeBidService{
+		result: bid_response.PlaceBidResponse{
+			Auction: auction,
+			Bid:     bid,
+		},
+	}
+	rooms := realtime.NewRoomManager()
+	client, _ := rooms.Join(auctionID, nil, realtime.Snapshot{
+		Auction: auction,
+		Version: 0,
+	})
+	drainRealtimeClient(client)
+
+	handler := controller.NewBidController(svc, rooms)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/auctions/"+auctionID.String()+"/bids",
+		strings.NewReader(bidRequestBody(1000)),
+	)
+	req.SetPathValue("id", auctionID.String())
+	req = withBidder(req)
+	rec := httptest.NewRecorder()
+
+	handler.PlaceBid(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusCreated)
+	}
+
+	event := receiveRealtimeEvent(t, client)
+	if event.Type != "bid" {
+		t.Fatalf("event type = %q, want bid", event.Type)
+	}
+	if event.AuctionID != auctionID {
+		t.Errorf("event auction id = %s, want %s", event.AuctionID, auctionID)
+	}
+	if event.Version != 1 {
+		t.Errorf("event version = %d, want 1", event.Version)
+	}
+}
+
 func TestBidControllerReplay(t *testing.T) {
 	svc := &fakeBidService{
 		result: bid_response.PlaceBidResponse{
@@ -91,7 +141,7 @@ func TestBidControllerReplay(t *testing.T) {
 			Replay:  true,
 		},
 	}
-	handler := controller.NewBidController(svc)
+	handler := controller.NewBidController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/auctions/"+uuid.NewString()+"/bids",
@@ -110,7 +160,7 @@ func TestBidControllerReplay(t *testing.T) {
 
 func TestBidControllerUnauthenticated(t *testing.T) {
 	svc := &fakeBidService{}
-	handler := controller.NewBidController(svc)
+	handler := controller.NewBidController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/auctions/"+uuid.NewString()+"/bids",
@@ -128,7 +178,7 @@ func TestBidControllerUnauthenticated(t *testing.T) {
 
 func TestBidControllerInvalidAuctionID(t *testing.T) {
 	svc := &fakeBidService{}
-	handler := controller.NewBidController(svc)
+	handler := controller.NewBidController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/auctions/bad/bids",
@@ -150,7 +200,7 @@ func TestBidControllerInvalidAuctionID(t *testing.T) {
 
 func TestBidControllerMalformedJSON(t *testing.T) {
 	svc := &fakeBidService{}
-	handler := controller.NewBidController(svc)
+	handler := controller.NewBidController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/auctions/"+uuid.NewString()+"/bids",
@@ -183,7 +233,7 @@ func TestBidControllerErrorMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &fakeBidService{err: tt.err}
-			handler := controller.NewBidController(svc)
+			handler := controller.NewBidController(svc, realtime.NewRoomManager())
 			req := httptest.NewRequest(
 				http.MethodPost,
 				"/api/auctions/"+uuid.NewString()+"/bids",

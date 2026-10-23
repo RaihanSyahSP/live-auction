@@ -5,6 +5,8 @@ import (
 	"live-auction/server/internal/helper"
 	"live-auction/server/internal/middleware"
 	"live-auction/server/internal/model/web/auction_request"
+	"live-auction/server/internal/model/web/auction_response"
+	"live-auction/server/internal/realtime"
 	"live-auction/server/internal/service"
 	"net/http"
 	"strconv"
@@ -14,11 +16,13 @@ import (
 
 type AdminController struct {
 	auctionService service.AuctionService
+	rooms          *realtime.RoomManager
 }
 
-func NewAdminController(auctionService service.AuctionService) *AdminController {
+func NewAdminController(auctionService service.AuctionService, rooms *realtime.RoomManager) *AdminController {
 	return &AdminController{
 		auctionService: auctionService,
+		rooms:          rooms,
 	}
 }
 
@@ -80,23 +84,27 @@ func (c *AdminController) Start(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *AdminController) End(w http.ResponseWriter, r *http.Request) {
-	c.changeStatus(w, r, "end")
+	result, ok := c.changeStatus(w, r, "end")
+	if !ok {
+		return
+	}
+	c.rooms.PublishEnded(result)
 }
 
-func (c *AdminController) changeStatus(w http.ResponseWriter, r *http.Request, action string) {
+func (c *AdminController) changeStatus(w http.ResponseWriter, r *http.Request, action string) (auction_response.AuctionResponse, bool) {
 	principal, ok := middleware.PrincipalFrom(r.Context())
 	if !ok {
 		exception.WriteError(w, exception.ErrUnauthenticated)
-		return
+		return auction_response.AuctionResponse{}, false
 	}
 
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		exception.WriteError(w, exception.ErrValidation)
-		return
+		return auction_response.AuctionResponse{}, false
 	}
 
-	var result any
+	var result auction_response.AuctionResponse
 	if action == "start" {
 		result, err = c.auctionService.Start(r.Context(), principal.UserID, id)
 	} else {
@@ -104,10 +112,11 @@ func (c *AdminController) changeStatus(w http.ResponseWriter, r *http.Request, a
 	}
 	if err != nil {
 		exception.WriteError(w, err)
-		return
+		return auction_response.AuctionResponse{}, false
 	}
 
 	helper.WriteJSON(w, http.StatusOK, result)
+	return result, true
 }
 
 func (c *AdminController) Delete(w http.ResponseWriter, r *http.Request) {

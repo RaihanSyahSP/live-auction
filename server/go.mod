@@ -11,6 +11,8 @@ require (
 	golang.org/x/crypto v0.58.0
 )
 
+require github.com/coder/websocket v1.8.15 // indirect
+
 require (
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect

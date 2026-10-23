@@ -9,15 +9,17 @@ import (
 	"live-auction/server/internal/helper"
 	"live-auction/server/internal/middleware"
 	"live-auction/server/internal/model/web/bid_request"
+	"live-auction/server/internal/realtime"
 	"live-auction/server/internal/service"
 )
 
 type BidController struct {
 	bidService service.BidService
+	rooms      *realtime.RoomManager
 }
 
-func NewBidController(bidService service.BidService) *BidController {
-	return &BidController{bidService: bidService}
+func NewBidController(bidService service.BidService, rooms *realtime.RoomManager) *BidController {
+	return &BidController{bidService: bidService, rooms: rooms}
 }
 
 func (c *BidController) PlaceBid(w http.ResponseWriter, r *http.Request) {
@@ -56,4 +58,12 @@ func (c *BidController) PlaceBid(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helper.WriteJSON(w, status, result)
+
+	c.rooms.PublishBid(
+		result.Auction,
+		result.Bid,
+		result.PreviousHighestUserID,
+		result.Extended,
+	)
+
 }

@@ -18,6 +18,7 @@ import (
 	"live-auction/server/internal/config"
 	"live-auction/server/internal/controller"
 	"live-auction/server/internal/middleware"
+	"live-auction/server/internal/realtime"
 	"live-auction/server/internal/repository"
 	auctionrepo "live-auction/server/internal/repository/auction"
 	bidrepo "live-auction/server/internal/repository/bid"
@@ -92,10 +93,18 @@ func main() {
 		time.Now,
 	)
 
+	rooms := realtime.NewRoomManager()
+
+	wsController := controller.NewWebSocketController(
+		rooms,
+		auctionService,
+		accessTokens,
+		cfg.AppOrigin,
+	)
 	auctionController := controller.NewAuctionController(auctionService)
-	adminController := controller.NewAdminController(auctionService)
+	adminController := controller.NewAdminController(auctionService, rooms)
 	authController := controller.NewAuthController(authService, cookies)
-	bidController := controller.NewBidController(bidService)
+	bidController := controller.NewBidController(bidService, rooms)
 
 	loginLimiter := middleware.NewRateLimiter(
 		rate.Every(6*time.Second), // 10 per menit
@@ -117,6 +126,7 @@ func main() {
 		RefreshLimiter: refreshLimiter,
 		Auction:        auctionController,
 		Admin:          adminController,
+		WebSocket:      wsController,
 		Bid:            bidController,
 		BidLimiter:     bidLimiter,
 	})

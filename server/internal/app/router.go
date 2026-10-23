@@ -19,6 +19,7 @@ type RouterDeps struct {
 	Admin          *controller.AdminController
 	Bid            *controller.BidController
 	BidLimiter     *middleware.RateLimiter
+	WebSocket      *controller.WebSocketController
 }
 
 func NewRouter(deps RouterDeps) http.Handler {
@@ -30,6 +31,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	if deps.Auth == nil {
 		return mux
+	}
+
+	if deps.WebSocket != nil {
+		mux.HandleFunc("GET /ws/auctions/{id}", deps.WebSocket.ServeWS)
 	}
 
 	if deps.Auction != nil {

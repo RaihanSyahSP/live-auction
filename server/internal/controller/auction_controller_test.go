@@ -16,6 +16,7 @@ import (
 	"live-auction/server/internal/model/domain"
 	"live-auction/server/internal/model/web/auction_request"
 	"live-auction/server/internal/model/web/auction_response"
+	"live-auction/server/internal/realtime"
 )
 
 type fakeAuctionService struct {
@@ -178,7 +179,7 @@ func TestAdminControllerListPagination(t *testing.T) {
 	svc := &fakeAuctionService{
 		listResult: []auction_response.AuctionResponse{{ID: uuid.New(), Title: "Auction"}},
 	}
-	handler := controller.NewAdminController(svc)
+	handler := controller.NewAdminController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/auctions?page=2&limit=10", nil)
 	rec := httptest.NewRecorder()
 
@@ -197,7 +198,7 @@ func TestAdminControllerListPagination(t *testing.T) {
 
 func TestAdminControllerListInvalidPage(t *testing.T) {
 	svc := &fakeAuctionService{}
-	handler := controller.NewAdminController(svc)
+	handler := controller.NewAdminController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/auctions?page=0", nil)
 	rec := httptest.NewRecorder()
 
@@ -212,7 +213,7 @@ func TestAdminControllerCreate(t *testing.T) {
 	svc := &fakeAuctionService{
 		createResult: auction_response.AuctionResponse{ID: uuid.New(), Title: "Draft"},
 	}
-	handler := controller.NewAdminController(svc)
+	handler := controller.NewAdminController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/admin/auctions",
@@ -237,7 +238,7 @@ func TestAdminControllerCreate(t *testing.T) {
 
 func TestAdminControllerCreateUnauthenticated(t *testing.T) {
 	svc := &fakeAuctionService{}
-	handler := controller.NewAdminController(svc)
+	handler := controller.NewAdminController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(http.MethodPost, "/api/admin/auctions", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
 
@@ -250,7 +251,7 @@ func TestAdminControllerCreateUnauthenticated(t *testing.T) {
 
 func TestAdminControllerCreateMalformedJSON(t *testing.T) {
 	svc := &fakeAuctionService{}
-	handler := controller.NewAdminController(svc)
+	handler := controller.NewAdminController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(http.MethodPost, "/api/admin/auctions", strings.NewReader(`{`))
 	req = withAdmin(req)
 	rec := httptest.NewRecorder()
@@ -267,7 +268,7 @@ func TestAdminControllerStartEndDelete(t *testing.T) {
 		startResult: auction_response.AuctionResponse{ID: uuid.New(), Title: "Started"},
 		endResult:   auction_response.AuctionResponse{ID: uuid.New(), Title: "Ended"},
 	}
-	handler := controller.NewAdminController(svc)
+	handler := controller.NewAdminController(svc, realtime.NewRoomManager())
 	id := uuid.NewString()
 
 	startReq := httptest.NewRequest(http.MethodPost, "/api/admin/auctions/"+id+"/start", nil)
@@ -298,9 +299,52 @@ func TestAdminControllerStartEndDelete(t *testing.T) {
 	}
 }
 
+func TestAdminControllerEndPublishesEndedEvent(t *testing.T) {
+	auctionID := uuid.New()
+	svc := &fakeAuctionService{
+		endResult: auction_response.AuctionResponse{
+			ID:      auctionID,
+			Status:  domain.AuctionStatusEnded,
+			Version: 2,
+		},
+	}
+	rooms := realtime.NewRoomManager()
+	client, _ := rooms.Join(auctionID, nil, realtime.Snapshot{
+		Auction: auction_response.AuctionResponse{
+			ID:     auctionID,
+			Status: domain.AuctionStatusLive,
+		},
+	})
+	drainRealtimeClient(client)
+
+	handler := controller.NewAdminController(svc, rooms)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/admin/auctions/"+auctionID.String()+"/end",
+		nil,
+	)
+	req.SetPathValue("id", auctionID.String())
+	req = withAdmin(req)
+	rec := httptest.NewRecorder()
+
+	handler.End(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	event := receiveRealtimeEvent(t, client)
+	if event.Type != "ended" {
+		t.Fatalf("event type = %q, want ended", event.Type)
+	}
+	if event.Version != 2 {
+		t.Errorf("event version = %d, want 2", event.Version)
+	}
+}
+
 func TestAdminControllerStartInvalidID(t *testing.T) {
 	svc := &fakeAuctionService{}
-	handler := controller.NewAdminController(svc)
+	handler := controller.NewAdminController(svc, realtime.NewRoomManager())
 	req := httptest.NewRequest(http.MethodPost, "/api/admin/auctions/bad/start", nil)
 	req.SetPathValue("id", "bad")
 	req = withAdmin(req)
