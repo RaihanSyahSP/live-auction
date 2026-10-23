@@ -285,6 +285,108 @@ func TestAuctionServiceCloseDue(t *testing.T) {
 	}
 }
 
+func TestAuctionServiceCloseDueSkipsNotDue(t *testing.T) {
+	f := newAuctionFixture(t)
+	draft := f.createDraft(t)
+	f.start(t, draft.ID)
+
+	ended, err := f.svc.CloseDue(context.Background())
+	if err != nil {
+		t.Fatalf("CloseDue() error = %v", err)
+	}
+	if len(ended) != 0 {
+		t.Fatalf("CloseDue() length = %d, want 0", len(ended))
+	}
+
+	if _, err := f.svc.Current(context.Background()); err != nil {
+		t.Fatalf("Current() error = %v", err)
+	}
+}
+
+func TestAuctionServiceCloseDueReturnsEndedResponse(t *testing.T) {
+	f := newAuctionFixture(t)
+	draft := f.createDraft(t)
+	f.start(t, draft.ID)
+	f.clock.Advance(2 * time.Minute)
+
+	ended, err := f.svc.CloseDue(context.Background())
+	if err != nil {
+		t.Fatalf("CloseDue() error = %v", err)
+	}
+	if len(ended) != 1 {
+		t.Fatalf("CloseDue() length = %d, want 1", len(ended))
+	}
+	if ended[0].Status != domain.AuctionStatusEnded {
+		t.Errorf("Status = %q, want ended", ended[0].Status)
+	}
+	if ended[0].Version == 0 {
+		t.Error("Version = 0, want incremented version")
+	}
+}
+
+func TestAuctionServiceCloseDueTwice(t *testing.T) {
+	f := newAuctionFixture(t)
+	draft := f.createDraft(t)
+	f.start(t, draft.ID)
+	f.clock.Advance(2 * time.Minute)
+
+	first, err := f.svc.CloseDue(context.Background())
+	if err != nil {
+		t.Fatalf("first CloseDue() error = %v", err)
+	}
+	if len(first) != 1 {
+		t.Fatalf("first length = %d, want 1", len(first))
+	}
+
+	second, err := f.svc.CloseDue(context.Background())
+	if err != nil {
+		t.Fatalf("second CloseDue() error = %v", err)
+	}
+	if len(second) != 0 {
+		t.Fatalf("second length = %d, want 0", len(second))
+	}
+}
+
+func TestAuctionServiceCloseDueAfterAdminEnd(t *testing.T) {
+	f := newAuctionFixture(t)
+	draft := f.createDraft(t)
+	started := f.start(t, draft.ID)
+	bidderID := f.setHighestBid(t, started.ID, 1500)
+	f.clock.Advance(2 * time.Minute)
+
+	adminEnded, err := f.svc.End(context.Background(), f.adminID, started.ID)
+	if err != nil {
+		t.Fatalf("End() error = %v", err)
+	}
+
+	ended, err := f.svc.CloseDue(context.Background())
+	if err != nil {
+		t.Fatalf("CloseDue() error = %v", err)
+	}
+	if len(ended) != 0 {
+		t.Fatalf("CloseDue() length = %d, want 0", len(ended))
+	}
+
+	if adminEnded.WinnerID == nil || *adminEnded.WinnerID != bidderID {
+		t.Errorf("WinnerID = %v, want %v", adminEnded.WinnerID, bidderID)
+	}
+}
+
+func TestAuctionServiceCloseDueRecoversOverdueAuction(t *testing.T) {
+	f := newAuctionFixture(t)
+	draft := f.createDraft(t)
+	f.start(t, draft.ID)
+	f.clock.Advance(2 * time.Minute)
+
+	ended, err := f.svc.CloseDue(context.Background())
+	if err != nil {
+		t.Fatalf("CloseDue() error = %v", err)
+	}
+	if len(ended) != 1 {
+		t.Fatalf("CloseDue() length = %d, want 1", len(ended))
+	}
+}
+
 func TestAuctionServiceListPagination(t *testing.T) {
 	f := newAuctionFixture(t)
 	f.createDraft(t)

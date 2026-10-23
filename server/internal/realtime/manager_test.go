@@ -371,6 +371,32 @@ func TestRoomManagerPublishEndedBroadcasts(t *testing.T) {
 	}
 }
 
+func TestRoomManagerPublishEndedIgnoresDuplicateVersion(t *testing.T) {
+	now := testTime()
+	m := newTestManager(&now)
+	auctionID := uuid.New()
+
+	client, _ := m.Join(auctionID, nil, Snapshot{
+		Version: 1,
+		Auction: testAuction(auctionID, 1),
+	})
+	drainClient(client)
+
+	ended := testAuction(auctionID, 2)
+	ended.Status = domain.AuctionStatusEnded
+
+	m.PublishEnded(ended)
+	if event := receiveEvent(t, client); event.Type != "ended" {
+		t.Fatalf("event = %q, want ended", event.Type)
+	}
+
+	m.PublishEnded(ended)
+
+	if len(client.Send) != 0 {
+		t.Fatal("duplicate ended event was published")
+	}
+}
+
 func TestRoomManagerLeaveClosesClientAndPublishesPresence(t *testing.T) {
 	now := testTime()
 	m := newTestManager(&now)

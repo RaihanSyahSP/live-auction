@@ -41,6 +41,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	databaseCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelDB()
 
@@ -95,6 +98,16 @@ func main() {
 
 	rooms := realtime.NewRoomManager()
 
+	scheduler := app.NewScheduler(auctionService, rooms, time.Second, time.Now)
+
+	startupCtx, cancelStartup := context.WithTimeout(ctx, 10*time.Second)
+	if err := scheduler.CloseDue(startupCtx); err != nil {
+		cancelStartup()
+		slog.Error("close due auctions on startup", "error", err)
+		os.Exit(1)
+	}
+	cancelStartup()
+
 	wsController := controller.NewWebSocketController(
 		rooms,
 		auctionService,
@@ -132,8 +145,7 @@ func main() {
 	})
 	server := app.NewServer(cfg, handler)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	go scheduler.Run(ctx)
 
 	errCh := make(chan error, 1)
 	go func() {

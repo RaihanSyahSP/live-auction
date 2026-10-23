@@ -159,6 +159,10 @@ func (m *RoomManager) PublishEnded(auction auction_response.AuctionResponse) {
 	room.mu.Lock()
 	defer room.mu.Unlock()
 
+	if auction.Version <= room.version {
+		return
+	}
+
 	room.version = auction.Version
 	room.auction = auction
 

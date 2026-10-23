@@ -39,7 +39,7 @@ type fakeAuctionService struct {
 	endResult     auction_response.AuctionResponse
 	endErr        error
 	deleteErr     error
-	closeDue      []domain.Auction
+	closeDue      []auction_response.AuctionResponse
 	closeDueErr   error
 }
 
@@ -81,7 +81,7 @@ func (f *fakeAuctionService) DeleteDraft(ctx context.Context, adminID uuid.UUID,
 	return f.deleteErr
 }
 
-func (f *fakeAuctionService) CloseDue(ctx context.Context) ([]domain.Auction, error) {
+func (f *fakeAuctionService) CloseDue(ctx context.Context) ([]auction_response.AuctionResponse, error) {
 	return f.closeDue, f.closeDueErr
 }
 

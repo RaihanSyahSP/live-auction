@@ -31,7 +31,7 @@ type AuctionService interface {
 	Start(ctx context.Context, adminID uuid.UUID, id uuid.UUID) (auction_response.AuctionResponse, error)
 	End(ctx context.Context, adminID uuid.UUID, id uuid.UUID) (auction_response.AuctionResponse, error)
 	DeleteDraft(ctx context.Context, adminID uuid.UUID, id uuid.UUID) error
-	CloseDue(ctx context.Context) ([]domain.Auction, error)
+	CloseDue(ctx context.Context) ([]auction_response.AuctionResponse, error)
 }
 
 type auctionService struct {
@@ -61,7 +61,7 @@ func (s *auctionService) Bids(ctx context.Context, auctionID uuid.UUID, beforeID
 }
 
 // CloseDue implements [AuctionService].
-func (s *auctionService) CloseDue(ctx context.Context) ([]domain.Auction, error) {
+func (s *auctionService) CloseDue(ctx context.Context) ([]auction_response.AuctionResponse, error) {
 	var due []domain.Auction
 
 	if err := s.tx.WithinTx(ctx, func(tx pgx.Tx) error {
@@ -75,14 +75,13 @@ func (s *auctionService) CloseDue(ctx context.Context) ([]domain.Auction, error)
 		return nil, err
 	}
 
-	var ended []domain.Auction
+	var ended []auction_response.AuctionResponse
 	for _, auction := range due {
 		updated, err := s.End(ctx, uuid.Nil, auction.ID)
 		if err != nil {
 			return nil, err
 		}
-		_ = updated
-		ended = append(ended, auction)
+		ended = append(ended, updated)
 	}
 
 	return ended, nil
