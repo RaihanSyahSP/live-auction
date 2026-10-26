@@ -1,14 +1,9 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { Form, Link, useOutletContext } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { idr } from "~/features/auction/demo";
-import {
-  type AccountBidStatus,
-  bidStatusLabel,
-  demoAccount,
-  demoAccountBids,
-} from "./demo";
+import type { User } from "../auth/types";
+import { type AccountBidStatus, bidStatusLabel, demoAccountBids } from "./demo";
 
 const secondaryLinkClass =
   "inline-flex min-h-11 items-center justify-center rounded-xs border border-ink px-3 py-2 text-sm font-medium text-ink hover:bg-ink hover:text-paper";
@@ -24,7 +19,15 @@ function statusClass(status: AccountBidStatus) {
 }
 
 export default function AccountPage() {
-  const [notice, setNotice] = useState("");
+  const { user } = useOutletContext<{ user: User | null }>();
+
+  if (!user) {
+    return null;
+  }
+
+  const name = user.display_name ?? user.email;
+  const email = user.email;
+  const role = user.role === "admin" ? "Admin" : "Pembeli";
 
   return (
     <>
@@ -47,19 +50,15 @@ export default function AccountPage() {
             <dl className="mt-5 border-t border-rule-soft">
               <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-3 border-b border-rule-soft py-2.5">
                 <dt className="text-label uppercase text-muted">Nama</dt>
-                <dd className="break-words text-[0.9rem]">
-                  {demoAccount.name}
-                </dd>
+                <dd className="break-words text-[0.9rem]">{name}</dd>
               </div>
               <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-3 border-b border-rule-soft py-2.5">
                 <dt className="text-label uppercase text-muted">Email</dt>
-                <dd className="break-words text-[0.9rem]">
-                  {demoAccount.email}
-                </dd>
+                <dd className="break-words text-[0.9rem]">{email}</dd>
               </div>
               <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-3 border-b border-rule-soft py-2.5">
                 <dt className="text-label uppercase text-muted">Peran</dt>
-                <dd className="text-[0.9rem]">{demoAccount.role}</dd>
+                <dd className="text-[0.9rem]">{role}</dd>
               </div>
             </dl>
 
@@ -67,24 +66,12 @@ export default function AccountPage() {
               <Link className={secondaryLinkClass} to="/">
                 Buka ruang
               </Link>
-              <Button
-                onClick={() => setNotice("Logout belum terhubung ke backend.")}
-                size="sm"
-                type="button"
-                variant="secondary"
-              >
-                Keluar
-              </Button>
+              <Form method="post" action="/logout">
+                <Button size="sm" type="submit" variant="secondary">
+                  Keluar
+                </Button>
+              </Form>
             </div>
-
-            {notice ? (
-              <p
-                className="mt-3 border border-rule bg-paper px-3 py-2 text-sm"
-                role="status"
-              >
-                {notice}
-              </p>
-            ) : null}
           </Card>
         </section>
 

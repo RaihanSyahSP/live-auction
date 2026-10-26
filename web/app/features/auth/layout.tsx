@@ -2,6 +2,9 @@ import { Link, Outlet, useMatches } from "react-router";
 import { SiteFooter } from "~/components/layout/site-footer";
 import { SiteHeader } from "~/components/layout/site-header";
 import { type AuthChrome, authChrome } from "~/features/auth/chrome";
+import { guestMiddleware } from "~/features/auth/middleware";
+
+export const middleware = [guestMiddleware];
 
 export default function AuthLayout() {
   const matches = useMatches();
