@@ -1,15 +1,50 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+
+  --color-paper: #f4efe5;
+  --color-surface: #fbf8f1;
+  --color-ink: #1c1a17;
+  --color-muted: #5e574d;
+  --color-rule: #8e8475;
+  --color-rule-soft: #d8cfc0;
+  --color-accent: #b33a2b;
+  --color-accent-dark: #8f2c20;
+  --color-accent-tint: #f0d9d2;
+  --color-white: #fffdf8;
+
+  --container-page: 1180px;
+  --spacing-gutter: clamp(20px, 4vw, 48px);
+  --breakpoint-lg: 60rem;
 }
 
-html,
-body {
-  @apply bg-white dark:bg-gray-950;
+@layer base {
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+  body {
+    @apply bg-paper font-sans text-base text-ink antialiased;
+    line-height: 1.5;
+  }
+
+  ::selection {
+    @apply bg-accent text-white;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
