@@ -12,5 +12,6 @@ export default [
       route("login", "routes/login.tsx"),
       route("register", "routes/register.tsx"),
     ]),
+    layout("features/admin/layout.tsx", [route("admin", "routes/admin.tsx")]),
   ]),
 ] satisfies RouteConfig;
