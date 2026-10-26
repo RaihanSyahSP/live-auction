@@ -1,6 +1,9 @@
 import { Link, Outlet } from "react-router";
 import { SiteFooter } from "~/components/layout/site-footer";
 import { SiteHeader } from "~/components/layout/site-header";
+import { adminMiddleware, authMiddleware } from "~/features/auth/middleware";
+
+export const middleware = [authMiddleware, adminMiddleware];
 
 export default function AdminLayout() {
   return (

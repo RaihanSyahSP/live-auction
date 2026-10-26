@@ -1,5 +1,4 @@
-import { type FormEvent, useState } from "react";
-import { Link } from "react-router";
+import { Form, Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import {
@@ -11,64 +10,19 @@ import {
 } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 
-type Feedback = {
-  kind: "error" | "info";
-  message: string;
+type RegisterFormProps = {
+  error?: string;
+  errors?: Record<string, string[] | undefined>;
+  fields?: { displayName?: string; email?: string };
+  isSubmitting?: boolean;
 };
 
-export default function RegisterForm() {
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const data = new FormData(event.currentTarget);
-    const displayName = String(data.get("display_name") ?? "").trim();
-    const email = String(data.get("email") ?? "").trim();
-    const password = String(data.get("password") ?? "");
-    const confirmPassword = String(data.get("confirmPassword") ?? "");
-
-    if (!displayName || !email || !password || !confirmPassword) {
-      setFeedback({ kind: "error", message: "Lengkapi semua field." });
-      return;
-    }
-
-    if (displayName.length < 3) {
-      setFeedback({
-        kind: "error",
-        message: "Nama tampilan minimal 3 karakter.",
-      });
-      return;
-    }
-
-    if (!email.includes("@")) {
-      setFeedback({ kind: "error", message: "Format email belum valid." });
-      return;
-    }
-
-    if (password.length < 8) {
-      setFeedback({
-        kind: "error",
-        message: "Password minimal 8 karakter.",
-      });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setFeedback({
-        kind: "error",
-        message: "Password dan ulangi password belum sama.",
-      });
-      return;
-    }
-
-    setFeedback({
-      kind: "info",
-      message:
-        "Form registrasi sudah siap. Integrasi backend belum diaktifkan.",
-    });
-  }
-
+export default function RegisterForm({
+  error,
+  errors,
+  fields,
+  isSubmitting = false,
+}: RegisterFormProps) {
   return (
     <>
       <section aria-labelledby="register-title">
@@ -85,64 +39,76 @@ export default function RegisterForm() {
               Akun baru otomatis masuk sebagai pembeli. Kamu bisa langsung bid
               setelah sampai di ruang lelang.
             </p>
-            <p className="mt-4 border border-rule bg-paper px-3.5 py-2.5 text-sm">
-              Mode UI. Registrasi belum terhubung ke backend.
-            </p>
           </CardHeader>
 
           <CardContent>
-            <form noValidate onSubmit={handleSubmit}>
+            <Form method="post" noValidate>
               <FieldGroup>
+                {error ? <FieldError>{error}</FieldError> : null}
+
                 <Field>
                   <FieldLabel htmlFor="name">Nama tampilan</FieldLabel>
                   <Input
                     aria-describedby={
-                      feedback ? "register-feedback" : undefined
+                      errors?.displayName ? "name-error" : undefined
                     }
+                    aria-invalid={Boolean(errors?.displayName)}
                     autoComplete="nickname"
+                    defaultValue={fields?.displayName}
                     id="name"
                     maxLength={50}
                     minLength={3}
                     name="display_name"
-                    onChange={() => setFeedback(null)}
                     placeholder="Misalnya: Raihan"
                     required
                     type="text"
                   />
+                  {errors?.displayName ? (
+                    <FieldError id="name-error">
+                      {errors.displayName[0]}
+                    </FieldError>
+                  ) : null}
                 </Field>
 
                 <Field>
                   <FieldLabel htmlFor="email">Email</FieldLabel>
                   <Input
-                    aria-describedby={
-                      feedback ? "register-feedback" : undefined
-                    }
+                    aria-describedby={errors?.email ? "email-error" : undefined}
+                    aria-invalid={Boolean(errors?.email)}
                     autoComplete="email"
+                    defaultValue={fields?.email}
                     id="email"
                     name="email"
-                    onChange={() => setFeedback(null)}
                     placeholder="nama@contoh.com"
                     required
                     type="email"
                   />
+                  {errors?.email ? (
+                    <FieldError id="email-error">{errors.email[0]}</FieldError>
+                  ) : null}
                 </Field>
 
                 <Field>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
                   <Input
                     aria-describedby={
-                      feedback ? "register-feedback" : undefined
+                      errors?.password ? "password-error" : undefined
                     }
+                    aria-invalid={Boolean(errors?.password)}
                     autoComplete="new-password"
                     id="password"
                     maxLength={72}
                     minLength={8}
                     name="password"
-                    onChange={() => setFeedback(null)}
                     placeholder="Minimal 8 karakter"
                     required
                     type="password"
                   />
+                  {errors?.password ? (
+                    <FieldError id="password-error">
+                      {errors.password[0]}
+                    </FieldError>
+                  ) : null}
                 </Field>
 
                 <Field>
@@ -151,45 +117,38 @@ export default function RegisterForm() {
                   </FieldLabel>
                   <Input
                     aria-describedby={
-                      feedback ? "register-feedback" : undefined
+                      errors?.confirmPassword
+                        ? "confirm-password-error"
+                        : undefined
                     }
+                    aria-invalid={Boolean(errors?.confirmPassword)}
                     autoComplete="new-password"
                     id="confirm-password"
                     maxLength={72}
                     minLength={8}
                     name="confirmPassword"
-                    onChange={() => setFeedback(null)}
                     placeholder="Ketik ulang password"
                     required
                     type="password"
                   />
+                  {errors?.confirmPassword ? (
+                    <FieldError id="confirm-password-error">
+                      {errors.confirmPassword[0]}
+                    </FieldError>
+                  ) : null}
                 </Field>
 
                 <FieldDescription className="text-[0.78rem]">
                   Nama tampil di riwayat bid. Email tidak ditampilkan publik.
                 </FieldDescription>
 
-                <div aria-live="polite">
-                  {feedback?.kind === "error" ? (
-                    <FieldError id="register-feedback">
-                      {feedback.message}
-                    </FieldError>
-                  ) : null}
-
-                  {feedback?.kind === "info" ? (
-                    <FieldDescription
-                      className="border border-rule bg-paper px-3 py-2 text-sm text-ink"
-                      id="register-feedback"
-                      role="status"
-                    >
-                      {feedback.message}
-                    </FieldDescription>
-                  ) : null}
-                </div>
-
                 <Field>
-                  <Button className="w-full" type="submit">
-                    Buat akun
+                  <Button
+                    className="w-full"
+                    disabled={isSubmitting}
+                    type="submit"
+                  >
+                    {isSubmitting ? "Memproses..." : "Buat akun"}
                   </Button>
                   <FieldDescription className="mt-3 text-[0.9rem]">
                     Sudah punya akun?{" "}
@@ -199,7 +158,7 @@ export default function RegisterForm() {
                   </FieldDescription>
                 </Field>
               </FieldGroup>
-            </form>
+            </Form>
           </CardContent>
         </Card>
       </section>

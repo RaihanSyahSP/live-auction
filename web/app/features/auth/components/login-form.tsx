@@ -1,5 +1,4 @@
-import { type FormEvent, useState } from "react";
-import { Link } from "react-router";
+import { Form, Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import {
@@ -11,37 +10,19 @@ import {
 } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 
-type Feedback = {
-  kind: "error" | "info";
-  message: string;
+type LoginFormProps = {
+  error?: string;
+  errors?: Record<string, string[] | undefined>;
+  fields?: { email?: string };
+  isSubmitting?: boolean;
 };
 
-export default function LoginForm() {
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const data = new FormData(event.currentTarget);
-    const email = String(data.get("email") ?? "").trim();
-    const password = String(data.get("password") ?? "");
-
-    if (!email || !password) {
-      setFeedback({ kind: "error", message: "Isi email dan password." });
-      return;
-    }
-
-    if (!email.includes("@")) {
-      setFeedback({ kind: "error", message: "Format email belum valid." });
-      return;
-    }
-
-    setFeedback({
-      kind: "info",
-      message: "Form login sudah siap. Integrasi backend belum diaktifkan.",
-    });
-  }
-
+export default function LoginForm({
+  error,
+  errors,
+  fields,
+  isSubmitting = false,
+}: LoginFormProps) {
   return (
     <>
       <section aria-labelledby="login-title">
@@ -57,73 +38,69 @@ export default function LoginForm() {
             <p className="mt-3 max-w-[52ch] text-[0.95rem] text-muted">
               Gunakan email dan password untuk mengikuti lelang.
             </p>
-            <p className="mt-4 border border-rule bg-paper px-3.5 py-2.5 text-sm">
-              Mode UI. Login belum terhubung ke backend.
-            </p>
           </CardHeader>
 
           <CardContent>
-            <form noValidate onSubmit={handleSubmit}>
+            <Form method="post" noValidate>
               <FieldGroup>
+                {error ? <FieldError>{error}</FieldError> : null}
+
                 <Field>
                   <FieldLabel htmlFor="email">Email</FieldLabel>
                   <Input
-                    aria-describedby={feedback ? "login-feedback" : undefined}
+                    aria-describedby={errors?.email ? "email-error" : undefined}
+                    aria-invalid={Boolean(errors?.email)}
                     autoComplete="email"
+                    defaultValue={fields?.email}
                     id="email"
                     name="email"
-                    onChange={() => setFeedback(null)}
                     placeholder="nama@contoh.com"
                     required
                     type="email"
                   />
+                  {errors?.email ? (
+                    <FieldError id="email-error">{errors.email[0]}</FieldError>
+                  ) : null}
                 </Field>
 
                 <Field>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
                   <Input
-                    aria-describedby={feedback ? "login-feedback" : undefined}
+                    aria-describedby={
+                      errors?.password ? "password-error" : undefined
+                    }
+                    aria-invalid={Boolean(errors?.password)}
                     autoComplete="current-password"
                     id="password"
                     name="password"
-                    onChange={() => setFeedback(null)}
                     placeholder="Password"
                     required
                     type="password"
                   />
-
-                  <div aria-live="polite">
-                    {feedback?.kind === "error" ? (
-                      <FieldError id="login-feedback">
-                        {feedback.message}
-                      </FieldError>
-                    ) : null}
-
-                    {feedback?.kind === "info" ? (
-                      <FieldDescription
-                        className="border border-rule bg-paper px-3 py-2 text-sm text-ink"
-                        id="login-feedback"
-                        role="status"
-                      >
-                        {feedback.message}
-                      </FieldDescription>
-                    ) : null}
-                  </div>
+                  {errors?.password ? (
+                    <FieldError id="password-error">
+                      {errors.password[0]}
+                    </FieldError>
+                  ) : null}
                 </Field>
 
                 <Field>
-                  <Button className="w-full" type="submit">
-                    Masuk
+                  <Button
+                    className="w-full"
+                    disabled={isSubmitting}
+                    type="submit"
+                  >
+                    {isSubmitting ? "Memproses..." : "Masuk"}
                   </Button>
                   <FieldDescription className="mt-3 text-[0.9rem]">
                     Belum punya akun?{" "}
-                    <Link className="text-ink" to={"/register"}>
-                      Register
+                    <Link className="text-ink" to="/register">
+                      Daftar
                     </Link>
                   </FieldDescription>
                 </Field>
               </FieldGroup>
-            </form>
+            </Form>
           </CardContent>
         </Card>
       </section>

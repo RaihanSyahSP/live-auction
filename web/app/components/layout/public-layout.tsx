@@ -1,9 +1,11 @@
-import { Link, Outlet, useMatches } from "react-router";
+import { Link, Outlet, useMatches, useOutletContext } from "react-router";
+import type { User } from "~/features/auth/types";
 import type { PublicChrome } from "./public-chrome";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 
 export default function PublicLayout() {
+  const { user } = useOutletContext<{ user: User | null }>();
   const matches = useMatches();
   const chrome = (
     matches.at(-1)?.handle as { publicChrome?: PublicChrome } | undefined
@@ -24,12 +26,20 @@ export default function PublicLayout() {
             {chrome.demoTag}
           </span>
         ) : null}
-        <Link className="text-link" to="/login">
-          Masuk
-        </Link>
-        <Link className="text-link" to="/register">
-          Daftar
-        </Link>
+        {user ? (
+          <Link className="text-link" to="/account">
+            Akun: {user.display_name ?? user.email}
+          </Link>
+        ) : (
+          <>
+            <Link className="text-link" to="/login">
+              Masuk
+            </Link>
+            <Link className="text-link" to="/register">
+              Daftar
+            </Link>
+          </>
+        )}
       </SiteHeader>
 
       <main className="flex-1" id="main">
