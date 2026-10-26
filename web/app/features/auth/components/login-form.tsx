@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import {
@@ -116,9 +117,9 @@ export default function LoginForm() {
                   </Button>
                   <FieldDescription className="mt-3 text-[0.9rem]">
                     Belum punya akun?{" "}
-                    <span className="text-ink">
-                      Pendaftaran belum tersedia.
-                    </span>
+                    <Link className="text-ink" to={"/register"}>
+                      Register
+                    </Link>
                   </FieldDescription>
                 </Field>
               </FieldGroup>

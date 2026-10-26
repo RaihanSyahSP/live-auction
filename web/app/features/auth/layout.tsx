@@ -1,11 +1,17 @@
-import { Link, Outlet } from "react-router";
+import { Link, Outlet, useMatches } from "react-router";
 import { SiteFooter } from "~/components/layout/site-footer";
 import { SiteHeader } from "~/components/layout/site-header";
+import { type AuthChrome, authChrome } from "~/features/auth/chrome";
 
 export default function AuthLayout() {
+  const matches = useMatches();
+  const chrome =
+    (matches.at(-1)?.handle as { authChrome?: AuthChrome } | undefined)
+      ?.authChrome ?? authChrome.login;
+
   return (
     <>
-      <SiteHeader note="Masuk ke ruang lelang">
+      <SiteHeader note={chrome.headerNote}>
         <Link className="text-link" to="/">
           Kembali ke ruang
         </Link>
@@ -17,8 +23,14 @@ export default function AuthLayout() {
         </div>
       </main>
 
-      <SiteFooter>
-        <p>Masuk untuk memasang bid dan mengikuti lelang.</p>
+      <SiteFooter
+        actions={
+          <Link className="text-link" to={chrome.footerAction.to}>
+            {chrome.footerAction.label}
+          </Link>
+        }
+      >
+        <p>{chrome.footerNote}</p>
       </SiteFooter>
     </>
   );
