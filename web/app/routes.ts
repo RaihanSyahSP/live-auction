@@ -6,6 +6,7 @@ import {
 } from "@react-router/dev/routes";
 
 export default [
+  route("refresh", "routes/refresh.tsx"),
   layout("components/layout/app-shell.tsx", [
     layout("components/layout/public-layout.tsx", [
       index("routes/home.tsx"),

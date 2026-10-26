@@ -3,7 +3,7 @@ import { getErrorMessage } from "~/lib/api-client";
 import { authApi } from "./api";
 import { loginSchema, registerSchema } from "./schema";
 
-function safeNext(value: string | null) {
+export function safeNext(value: string | null) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/";
 }
 

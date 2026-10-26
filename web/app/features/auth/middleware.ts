@@ -16,17 +16,17 @@ export const sessionMiddleware: MiddlewareFunction = async ({
   context.set(userContext, user);
 };
 
-function loginRedirect(request: Request) {
+function refreshRedirect(request: Request) {
   const url = new URL(request.url);
   const next = encodeURIComponent(`${url.pathname}${url.search}`);
-  return redirect(`/login?next=${next}`);
+  return redirect(`/refresh?next=${next}`);
 }
 
 export const authMiddleware: MiddlewareFunction = ({ request, context }) => {
   const user = context.get(userContext);
 
   if (!user) {
-    throw loginRedirect(request);
+    throw refreshRedirect(request);
   }
 };
 
@@ -44,7 +44,7 @@ export const adminMiddleware: MiddlewareFunction = ({ request, context }) => {
   const user = context.get(userContext);
 
   if (!user) {
-    throw loginRedirect(request);
+    throw refreshRedirect(request);
   }
 
   if (user.role !== "admin") {
