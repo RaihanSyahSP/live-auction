@@ -8,6 +8,11 @@ export const handle = {
     demoTag: "Data demo",
     footerNote:
       "Bid di 60 detik terakhir memperpanjang sesi 60 detik, maksimal 5 kali.",
+    footerActions: [
+      { label: "Hasil lelang", to: "/results" },
+      { label: "Akun demo", to: "/account" },
+      { label: "Admin demo", to: "/admin" },
+    ],
   } satisfies PublicChrome,
 };
 

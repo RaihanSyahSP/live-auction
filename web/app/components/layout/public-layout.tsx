@@ -36,7 +36,19 @@ export default function PublicLayout() {
         <Outlet />
       </main>
 
-      <SiteFooter>
+      <SiteFooter
+        actions={
+          chrome.footerActions?.length ? (
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {chrome.footerActions.map((action) => (
+                <Link className="text-link" key={action.to} to={action.to}>
+                  {action.label}
+                </Link>
+              ))}
+            </div>
+          ) : undefined
+        }
+      >
         <p>
           {chrome.footerNote ?? "Ruang lelang live untuk elektronik bekas."}
         </p>
