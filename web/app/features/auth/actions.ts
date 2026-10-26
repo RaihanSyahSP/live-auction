@@ -72,3 +72,8 @@ export async function registerAction({ request }: ClientActionFunctionArgs) {
   const next = new URL(request.url).searchParams.get("next");
   return redirect(safeNext(next));
 }
+
+export async function logoutAction() {
+  await authApi.logout();
+  return redirect("/");
+}

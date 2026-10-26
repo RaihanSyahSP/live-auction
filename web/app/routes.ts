@@ -15,6 +15,7 @@ export default [
       route("login", "routes/login.tsx"),
       route("register", "routes/register.tsx"),
     ]),
+    route("logout", "routes/logout.tsx"),
     layout("features/account/layout.tsx", [
       route("account", "routes/account.tsx"),
     ]),

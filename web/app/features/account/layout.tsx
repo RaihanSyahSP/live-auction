@@ -24,7 +24,7 @@ export default function AccountLayout() {
       </SiteHeader>
 
       <main className="flex-1" id="main">
-        <Outlet />
+        <Outlet context={{ user }} />
       </main>
 
       <SiteFooter
