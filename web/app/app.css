@@ -6,6 +6,21 @@
   --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
 
+  --text-display: clamp(2.2rem, 4.8vw, 4.4rem);
+  --text-display--line-height: 0.98;
+  --text-display--letter-spacing: -0.02em;
+
+  --text-title: 1.55rem;
+  --text-title--line-height: 1.15;
+
+  --text-price: clamp(2rem, 4.6vw, 3.2rem);
+  --text-price--line-height: 1.05;
+  --text-price--letter-spacing: -0.02em;
+
+  --text-label: 0.7rem;
+  --text-label--line-height: 1.5;
+  --text-label--letter-spacing: 0.08em;
+
   --color-paper: #f4efe5;
   --color-surface: #fbf8f1;
   --color-ink: #1c1a17;
@@ -46,5 +61,14 @@
     html {
       scroll-behavior: auto;
     }
+  }
+}
+
+@utility page {
+  width: min(calc(100% - 48px), var(--container-page, 1180px));
+  margin-inline: auto;
+
+  @media (max-width: 640px) {
+    width: calc(100% - 32px);
   }
 }
