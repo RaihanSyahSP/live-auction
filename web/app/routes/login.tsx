@@ -1,16 +1,12 @@
 import LoginForm from "~/features/auth/components/login-form";
-import type { Route } from "./+types/login";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
-    { title: "Login — Live Auction" },
-    { name: "description", content: "Log in to your account" },
+    { title: "Masuk: LELANG" },
+    { name: "description", content: "Masuk ke ruang lelang elektronik bekas." },
   ];
 }
 
 export default function Login() {
-
-  return (
-    <LoginForm />
-  );
+  return <LoginForm />;
 }
