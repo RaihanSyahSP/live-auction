@@ -5,7 +5,7 @@ export function meta() {
     { title: "Akun: LELANG" },
     {
       name: "description",
-      content: "Profil dan riwayat bid akun demo.",
+      content: "Profil dan riwayat bid akun LELANG.",
     },
   ];
 }

@@ -12,7 +12,7 @@ export default function AccountLayout() {
   return (
     <>
       <SiteHeader note="Akun pembeli">
-        <span className="text-label uppercase text-muted">AKUN DEMO</span>
+        <span className="text-label uppercase text-muted">AKUN</span>
         <Link className="text-link" to="/">
           Buka ruang lelang
         </Link>
@@ -34,7 +34,7 @@ export default function AccountLayout() {
           </Link>
         }
       >
-        <p>Data demo. Profil dan bid belum berasal dari backend.</p>
+        <p>Profil dan riwayat bid tersimpan di backend.</p>
       </SiteFooter>
     </>
   );
