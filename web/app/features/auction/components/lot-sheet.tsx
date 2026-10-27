@@ -1,7 +1,8 @@
-import type { DemoAuction } from "../demo";
+import { formatLot } from "../format";
+import type { Auction } from "../types";
 
 type LotSheetProps = {
-  auction: DemoAuction;
+  auction: Auction;
 };
 
 export function LotSheet({ auction }: LotSheetProps) {
@@ -13,7 +14,7 @@ export function LotSheet({ auction }: LotSheetProps) {
       <div>
         <figure className="relative flex aspect-[4/3] min-h-[360px] flex-col items-center justify-center border border-rule bg-[#ede4d5] p-8 max-sm:aspect-[5/4] max-sm:min-h-0 max-sm:p-6">
           <span className="absolute top-3.5 left-4 border border-rule px-1.5 py-0.5 text-[0.68rem] tracking-[0.08em] text-muted">
-            LOT {auction.lot}
+            {formatLot(auction.lot)}
           </span>
           <svg
             aria-hidden="true"
@@ -83,11 +84,6 @@ export function LotSheet({ auction }: LotSheetProps) {
             </div>
           ))}
         </dl>
-
-        <p className="mt-6 max-w-[56ch] border-t border-rule-soft pt-3 text-xs leading-normal text-muted">
-          <strong>Data demo.</strong> Spesifikasi dan kondisi di atas adalah
-          contoh untuk prototipe, bukan unit nyata.
-        </p>
       </div>
     </section>
   );

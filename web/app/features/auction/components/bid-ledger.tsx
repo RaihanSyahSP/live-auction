@@ -1,5 +1,5 @@
-import type { Bid } from "../demo";
-import { idr } from "../demo";
+import { clockFormat, idr } from "../format";
+import type { Bid } from "../types";
 
 type BidLedgerProps = {
   bids: Bid[];
@@ -28,9 +28,11 @@ export function BidLedger({ bids }: BidLedgerProps) {
               key={bid.id}
             >
               <span className="text-[0.75rem] text-muted tabular-nums">
-                {bid.at}
+                {clockFormat.format(new Date(bid.created_at))}
               </span>
-              <span className="break-words text-[0.92rem]">{bid.name}</span>
+              <span className="break-words text-[0.92rem]">
+                {bid.display_name}
+              </span>
               <span className="text-[0.95rem] font-semibold tabular-nums">
                 {idr.format(bid.amount)}
               </span>
@@ -44,7 +46,7 @@ export function BidLedger({ bids }: BidLedgerProps) {
       )}
 
       <p className="mt-3 text-[0.75rem] text-muted">
-        Urutan terbaru di atas. Waktu memakai jam perangkat ini.
+        Urutan terbaru di atas. Waktu WIB.
       </p>
     </aside>
   );

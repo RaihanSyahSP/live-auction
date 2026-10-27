@@ -71,6 +71,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 	}
 
 	if deps.Bid != nil && deps.AccessTokens != nil {
+		mux.Handle(
+			"GET /api/me/bids",
+			middleware.Auth(
+				deps.AccessTokens,
+				http.HandlerFunc(deps.Bid.MyBids),
+			),
+		)
+
 		bidHandler := middleware.RateLimit(
 			deps.BidLimiter,
 			middleware.UserID,

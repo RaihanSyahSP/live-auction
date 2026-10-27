@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -85,6 +86,9 @@ func TestBidRepositoryInsertAndFind(t *testing.T) {
 	if inserted.CreatedAt.IsZero() {
 		t.Error("Insert() returned zero CreatedAt")
 	}
+	if inserted.DisplayName != "Raihan" {
+		t.Errorf("Insert() DisplayName = %q, want Raihan", inserted.DisplayName)
+	}
 
 	found, err := repo.FindByIdempotencyKey(ctx, tx, auctionID, userID, key)
 	if err != nil {
@@ -92,6 +96,9 @@ func TestBidRepositoryInsertAndFind(t *testing.T) {
 	}
 	if found.ID != inserted.ID {
 		t.Errorf("FindByIdempotencyKey() ID = %v, want %v", found.ID, inserted.ID)
+	}
+	if found.DisplayName != "Raihan" {
+		t.Errorf("FindByIdempotencyKey() DisplayName = %q, want Raihan", found.DisplayName)
 	}
 }
 
@@ -171,6 +178,119 @@ func TestBidRepositoryFindByIdempotencyKeyNotFound(t *testing.T) {
 	if !errors.Is(err, exception.ErrBidNotFound) {
 		t.Fatalf("FindByIdempotencyKey() error = %v, want %v", err, exception.ErrBidNotFound)
 	}
+}
+
+func TestBidRepositoryListByUserLatestAndAll(t *testing.T) {
+	repo, tx := newBidRepo(t)
+	ctx := context.Background()
+	bidderID := createBidUser(t, tx, "Bidder")
+	otherID := createBidUser(t, tx, "Other")
+
+	lostAuctionID := createBidAuction(t, tx, otherID)
+	if _, err := tx.Exec(
+		ctx,
+		`update auctions
+		 set status = 'ended', ended_at = now(), winner_id = $2, final_price = 5000
+		 where id = $1`,
+		lostAuctionID,
+		otherID,
+	); err != nil {
+		t.Fatalf("end lost auction fixture: %v", err)
+	}
+
+	wonAuctionID := createBidAuction(t, tx, otherID)
+	if _, err := tx.Exec(
+		ctx,
+		`update auctions
+		 set status = 'ended', ended_at = now(), winner_id = $2, final_price = 1500
+		 where id = $1`,
+		wonAuctionID,
+		bidderID,
+	); err != nil {
+		t.Fatalf("end won auction fixture: %v", err)
+	}
+
+	liveAuctionID := createBidAuction(t, tx, otherID)
+	if _, err := tx.Exec(
+		ctx,
+		`update auctions
+		 set highest_bidder_id = $2, current_price = 1500
+		 where id = $1`,
+		liveAuctionID,
+		bidderID,
+	); err != nil {
+		t.Fatalf("update live auction fixture: %v", err)
+	}
+
+	base := time.Date(2026, 10, 27, 10, 0, 0, 0, time.UTC)
+	lostBidID := insertBidAt(t, tx, lostAuctionID, bidderID, 5000, base)
+	wonBidID := insertBidAt(t, tx, wonAuctionID, bidderID, 1500, base.Add(time.Minute))
+	insertBidAt(t, tx, liveAuctionID, bidderID, 1000, base.Add(2*time.Minute))
+	latestLiveBidID := insertBidAt(t, tx, liveAuctionID, bidderID, 1500, base.Add(3*time.Minute))
+
+	latest, total, err := repo.ListByUserLatest(ctx, tx, bidderID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListByUserLatest() error = %v", err)
+	}
+	if total != 3 {
+		t.Errorf("latest total = %d, want 3", total)
+	}
+	if len(latest) != 3 {
+		t.Fatalf("latest length = %d, want 3", len(latest))
+	}
+	if latest[0].ID != latestLiveBidID || latest[0].Amount != 1500 {
+		t.Errorf("latest[0] = %+v, want latest live bid 1500", latest[0])
+	}
+	if latest[0].Status != domain.BidStatusLeading {
+		t.Errorf("latest[0].Status = %q, want leading", latest[0].Status)
+	}
+	if latest[1].ID != wonBidID || latest[1].Status != domain.BidStatusWon {
+		t.Errorf("latest[1] = %+v, want won bid", latest[1])
+	}
+	if latest[2].ID != lostBidID || latest[2].Status != domain.BidStatusLost {
+		t.Errorf("latest[2] = %+v, want lost bid", latest[2])
+	}
+
+	all, allTotal, err := repo.ListByUserAll(ctx, tx, bidderID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListByUserAll() error = %v", err)
+	}
+	if allTotal != 4 {
+		t.Errorf("all total = %d, want 4", allTotal)
+	}
+	if len(all) != 4 {
+		t.Fatalf("all length = %d, want 4", len(all))
+	}
+	if all[0].ID != latestLiveBidID {
+		t.Errorf("all[0].ID = %v, want %v", all[0].ID, latestLiveBidID)
+	}
+}
+
+func insertBidAt(
+	t *testing.T,
+	tx pgx.Tx,
+	auctionID uuid.UUID,
+	userID uuid.UUID,
+	amount int64,
+	createdAt time.Time,
+) uuid.UUID {
+	t.Helper()
+
+	id := uuid.New()
+	if _, err := tx.Exec(
+		context.Background(),
+		`insert into bids (id, auction_id, user_id, amount, idempotency_key, created_at)
+		 values ($1, $2, $3, $4, $5, $6)`,
+		id,
+		auctionID,
+		userID,
+		amount,
+		uuid.New(),
+		createdAt,
+	); err != nil {
+		t.Fatalf("insert bid at fixture: %v", err)
+	}
+	return id
 }
 
 func TestBidRepositoryListByAuctionWithPagination(t *testing.T) {

@@ -8,8 +8,8 @@ export const middleware = [authMiddleware, adminMiddleware];
 export default function AdminLayout() {
   return (
     <>
-      <SiteHeader note="Admin prototipe">
-        <span className="text-label uppercase text-muted">ADMIN DEMO</span>
+      <SiteHeader note="Admin">
+        <span className="text-label uppercase text-muted">ADMIN</span>
         <Link className="text-link" to="/">
           Buka ruang lelang
         </Link>
@@ -20,10 +20,7 @@ export default function AdminLayout() {
       </main>
 
       <SiteFooter>
-        <p>
-          Mode demo admin. Perubahan hanya tersimpan di memori halaman ini dan
-          tidak memengaruhi halaman lelang publik.
-        </p>
+        <p>Perubahan di halaman ini langsung tersimpan ke backend.</p>
       </SiteFooter>
     </>
   );

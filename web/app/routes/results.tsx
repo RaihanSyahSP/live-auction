@@ -5,10 +5,10 @@ export const handle = {
   publicChrome: {
     note: "Arsip hasil lelang",
     lotLabel: "HASIL",
-    footerNote: "Data demo. Hasil lelang belum diambil dari backend.",
+    footerNote: "Arsip lelang yang sudah selesai.",
     footerActions: [
       { label: "Buka ruang", to: "/" },
-      { label: "Admin demo", to: "/admin" },
+      { label: "Admin", to: "/admin" },
     ],
   } satisfies PublicChrome,
 };

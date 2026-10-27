@@ -1,5 +1,5 @@
-import { idr } from "~/features/auction/demo";
-import type { DemoResult } from "../demo";
+import { formatLot, idr } from "~/features/auction/format";
+import type { AuctionResult } from "~/features/auction/types";
 
 const dateTimeFormat = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
@@ -8,10 +8,12 @@ const dateTimeFormat = new Intl.DateTimeFormat("id-ID", {
 });
 
 type ResultCardProps = {
-  result: DemoResult;
+  result: AuctionResult;
 };
 
 export function ResultCard({ result }: ResultCardProps) {
+  const { auction } = result;
+
   return (
     <article className="border border-rule bg-surface p-[18px]">
       <div className="flex items-center justify-between gap-3">
@@ -19,16 +21,16 @@ export function ResultCard({ result }: ResultCardProps) {
           SELESAI
         </p>
         <p className="text-[0.7rem] tracking-[0.08em] text-muted">
-          LOT {result.lot}
+          {formatLot(auction.lot)}
         </p>
       </div>
 
       <h2 className="mt-2.5 font-serif text-[1.55rem] font-normal leading-[1.15]">
-        {result.title}
+        {auction.title}
       </h2>
-      {result.subtitle ? (
+      {auction.subtitle ? (
         <p className="mt-0.5 text-[0.9rem] italic text-muted">
-          {result.subtitle}
+          {auction.subtitle}
         </p>
       ) : null}
 
@@ -37,30 +39,34 @@ export function ResultCard({ result }: ResultCardProps) {
           <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
             Pemenang
           </dt>
-          <dd className="mt-0.5 text-[0.88rem]">{result.winner}</dd>
+          <dd className="mt-0.5 text-[0.88rem]">
+            {result.winner_name || "Tidak ada pemenang"}
+          </dd>
         </div>
         <div>
           <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
             Harga akhir
           </dt>
           <dd className="mt-0.5 text-[0.88rem] tabular-nums">
-            {result.finalPrice === null
+            {auction.final_price === null || auction.final_price === undefined
               ? "Tidak ada"
-              : idr.format(result.finalPrice)}
+              : idr.format(auction.final_price)}
           </dd>
         </div>
         <div>
           <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
             Jumlah bid
           </dt>
-          <dd className="mt-0.5 text-[0.88rem]">{result.bidCount} bid</dd>
+          <dd className="mt-0.5 text-[0.88rem]">{result.bid_count} bid</dd>
         </div>
         <div>
           <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
             Selesai
           </dt>
           <dd className="mt-0.5 text-[0.88rem]">
-            {dateTimeFormat.format(new Date(result.endedAt))}
+            {auction.ended_at
+              ? dateTimeFormat.format(new Date(auction.ended_at))
+              : "Tidak tersedia"}
           </dd>
         </div>
       </dl>

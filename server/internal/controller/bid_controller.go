@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,6 +32,58 @@ func NewBidController(
 		c.instrument = instrument[0]
 	}
 	return c
+}
+
+func (c *BidController) MyBids(w http.ResponseWriter, r *http.Request) {
+	principal, ok := middleware.PrincipalFrom(r.Context())
+	if !ok {
+		exception.WriteError(w, exception.ErrUnauthenticated)
+		return
+	}
+
+	page := 1
+	if raw := r.URL.Query().Get("page"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 {
+			exception.WriteError(w, exception.ErrValidation)
+			return
+		}
+		page = parsed
+	}
+
+	limit := 20
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 100 {
+			exception.WriteError(w, exception.ErrValidation)
+			return
+		}
+		limit = parsed
+	}
+
+	all := false
+	if raw := r.URL.Query().Get("all"); raw != "" {
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			exception.WriteError(w, exception.ErrValidation)
+			return
+		}
+		all = parsed
+	}
+
+	result, err := c.bidService.MyBids(
+		r.Context(),
+		principal.UserID,
+		page,
+		limit,
+		all,
+	)
+	if err != nil {
+		exception.WriteError(w, err)
+		return
+	}
+
+	helper.WriteJSON(w, http.StatusOK, result)
 }
 
 func (c *BidController) PlaceBid(w http.ResponseWriter, r *http.Request) {

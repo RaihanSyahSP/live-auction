@@ -1,4 +1,5 @@
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import {
@@ -10,11 +11,13 @@ import {
 } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
-import { numberFormat } from "~/features/auction/demo";
-import type { DraftInput } from "../demo";
+import { numberFormat } from "~/features/auction/format";
+import { getErrorMessage } from "~/lib/api-client";
+import type { DraftInput } from "../model";
+import { type DraftFormValues, draftResolver, toDraftInput } from "../schema";
 
 type DraftFormProps = {
-  onCreate: (input: DraftInput) => void;
+  onCreate: (input: DraftInput) => Promise<void>;
 };
 
 type Feedback = {
@@ -23,6 +26,7 @@ type Feedback = {
 };
 
 type PriceFieldProps = {
+  error?: string;
   id: string;
   label: string;
   onChange: (value: number) => void;
@@ -31,6 +35,7 @@ type PriceFieldProps = {
 };
 
 function PriceField({
+  error,
   id,
   label,
   onChange,
@@ -43,6 +48,8 @@ function PriceField({
       <div className="flex items-center rounded-xs border-[1.5px] border-rule bg-white focus-within:border-ink focus-within:[outline:3px_solid_var(--color-ink)] focus-within:outline-offset-2">
         <span className="pl-3 text-[0.9rem] text-muted">Rp</span>
         <Input
+          aria-describedby={error ? `${id}-error` : undefined}
+          aria-invalid={Boolean(error)}
           autoComplete="off"
           className="min-h-11 min-w-0 flex-1 rounded-none border-0 bg-transparent px-2 py-2.5 tabular-nums focus-visible:outline-none"
           id={id}
@@ -56,102 +63,48 @@ function PriceField({
           value={value > 0 ? numberFormat.format(value) : ""}
         />
       </div>
+      {error ? <FieldError id={`${id}-error`}>{error}</FieldError> : null}
     </Field>
   );
 }
 
 export function DraftForm({ onCreate }: DraftFormProps) {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [startingPrice, setStartingPrice] = useState(0);
-  const [minIncrement, setMinIncrement] = useState(0);
+  const {
+    control,
+    formState: { errors, isSubmitting },
+    handleSubmit,
+    register,
+    reset,
+  } = useForm<DraftFormValues>({
+    defaultValues: {
+      condition: "",
+      description: "",
+      durationMinutes: 10,
+      includes: "",
+      minIncrement: 0,
+      specs: "",
+      startingPrice: 0,
+      subtitle: "",
+      title: "",
+    },
+    resolver: draftResolver,
+  });
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const submit = handleSubmit(async (values) => {
+    setFeedback(null);
 
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const title = String(data.get("title") ?? "").trim();
-    const subtitle = String(data.get("subtitle") ?? "").trim();
-    const description = String(data.get("description") ?? "").trim();
-    const condition = String(data.get("condition") ?? "").trim();
-    const durationMinutes = Number(data.get("durationMinutes"));
-    const includes = String(data.get("includes") ?? "")
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-    const specs = String(data.get("specs") ?? "")
-      .split("\n")
-      .map((line) => {
-        const separator = line.indexOf(":");
-        if (separator === -1) {
-          return null;
-        }
-
-        const label = line.slice(0, separator).trim();
-        const value = line.slice(separator + 1).trim();
-        return label && value ? { label, value } : null;
-      })
-      .filter((spec): spec is { label: string; value: string } =>
-        Boolean(spec),
-      );
-
-    if (title.length < 3) {
-      setFeedback({ kind: "error", message: "Judul minimal 3 karakter." });
-      return;
-    }
-
-    if (description.length < 10) {
-      setFeedback({ kind: "error", message: "Deskripsi minimal 10 karakter." });
-      return;
-    }
-
-    if (condition.length < 2) {
-      setFeedback({ kind: "error", message: "Isi kondisi barang." });
-      return;
-    }
-
-    if (startingPrice <= 0) {
-      setFeedback({ kind: "error", message: "Harga awal harus lebih dari 0." });
-      return;
-    }
-
-    if (minIncrement <= 0) {
-      setFeedback({ kind: "error", message: "Kelipatan harus lebih dari 0." });
-      return;
-    }
-
-    if (
-      !Number.isFinite(durationMinutes) ||
-      durationMinutes < 1 ||
-      durationMinutes > 60
-    ) {
+    try {
+      await onCreate(toDraftInput(values));
+      reset();
       setFeedback({
-        kind: "error",
-        message: "Durasi harus antara 1 dan 60 menit.",
+        kind: "info",
+        message: "Draft dibuat. Cari di daftar lelang, lalu tekan Start.",
       });
-      return;
+    } catch (error) {
+      setFeedback({ kind: "error", message: getErrorMessage(error) });
     }
-
-    onCreate({
-      title,
-      subtitle,
-      description,
-      condition,
-      includes,
-      specs,
-      startingPrice,
-      minIncrement,
-      durationMinutes,
-    });
-
-    form.reset();
-    setStartingPrice(0);
-    setMinIncrement(0);
-    setFeedback({
-      kind: "info",
-      message: "Draft dibuat. Cari di daftar lelang, lalu tekan Start.",
-    });
-  }
+  });
 
   return (
     <Card>
@@ -170,112 +123,185 @@ export function DraftForm({ onCreate }: DraftFormProps) {
       </CardHeader>
 
       <CardContent>
-        <form id="create-form" noValidate onSubmit={handleSubmit}>
+        <form id="create-form" noValidate onSubmit={submit}>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="auction-title">Judul</FieldLabel>
               <Input
+                aria-describedby={
+                  errors.title ? "auction-title-error" : undefined
+                }
+                aria-invalid={Boolean(errors.title)}
                 autoComplete="off"
                 id="auction-title"
-                maxLength={80}
-                name="title"
+                maxLength={120}
                 placeholder="Misalnya: Fujifilm X-T2"
-                required
                 type="text"
+                {...register("title")}
               />
+              {errors.title ? (
+                <FieldError id="auction-title-error">
+                  {errors.title.message}
+                </FieldError>
+              ) : null}
             </Field>
 
             <Field>
               <FieldLabel htmlFor="auction-subtitle">Subjudul</FieldLabel>
               <Input
+                aria-describedby={
+                  errors.subtitle ? "auction-subtitle-error" : undefined
+                }
+                aria-invalid={Boolean(errors.subtitle)}
                 autoComplete="off"
                 id="auction-subtitle"
-                maxLength={80}
-                name="subtitle"
+                maxLength={120}
                 placeholder="Misalnya: Body only"
                 type="text"
+                {...register("subtitle")}
               />
+              {errors.subtitle ? (
+                <FieldError id="auction-subtitle-error">
+                  {errors.subtitle.message}
+                </FieldError>
+              ) : null}
             </Field>
 
             <Field>
               <FieldLabel htmlFor="auction-description">Deskripsi</FieldLabel>
               <Textarea
+                aria-describedby={
+                  errors.description ? "auction-description-error" : undefined
+                }
+                aria-invalid={Boolean(errors.description)}
                 id="auction-description"
-                name="description"
                 placeholder="Kondisi, riwayat pemakaian, dan catatan penting."
-                required
                 rows={4}
+                {...register("description")}
               />
+              {errors.description ? (
+                <FieldError id="auction-description-error">
+                  {errors.description.message}
+                </FieldError>
+              ) : null}
             </Field>
 
             <Field>
               <FieldLabel htmlFor="auction-condition">Kondisi</FieldLabel>
               <Input
+                aria-describedby={
+                  errors.condition ? "auction-condition-error" : undefined
+                }
+                aria-invalid={Boolean(errors.condition)}
                 autoComplete="off"
                 id="auction-condition"
                 maxLength={40}
-                name="condition"
                 placeholder="Misalnya: Used, 8/10"
-                required
                 type="text"
+                {...register("condition")}
               />
+              {errors.condition ? (
+                <FieldError id="auction-condition-error">
+                  {errors.condition.message}
+                </FieldError>
+              ) : null}
             </Field>
 
             <Field>
               <FieldLabel htmlFor="auction-includes">Kelengkapan</FieldLabel>
               <Input
+                aria-describedby={
+                  errors.includes ? "auction-includes-error" : undefined
+                }
+                aria-invalid={Boolean(errors.includes)}
                 autoComplete="off"
                 id="auction-includes"
                 maxLength={160}
-                name="includes"
                 placeholder="Body, baterai, charger"
                 type="text"
+                {...register("includes")}
               />
               <FieldDescription className="text-[0.78rem]">
                 Pisahkan dengan koma.
               </FieldDescription>
+              {errors.includes ? (
+                <FieldError id="auction-includes-error">
+                  {errors.includes.message}
+                </FieldError>
+              ) : null}
             </Field>
 
             <Field>
               <FieldLabel htmlFor="auction-specs">Spesifikasi</FieldLabel>
               <Textarea
+                aria-describedby={
+                  errors.specs ? "auction-specs-error" : undefined
+                }
+                aria-invalid={Boolean(errors.specs)}
                 id="auction-specs"
-                name="specs"
                 placeholder={"Sensor: Full-frame 24 MP\nMount: Sony E-mount"}
                 rows={3}
+                {...register("specs")}
               />
               <FieldDescription className="text-[0.78rem]">
                 Satu baris per spesifikasi, format Label: Nilai.
               </FieldDescription>
+              {errors.specs ? (
+                <FieldError id="auction-specs-error">
+                  {errors.specs.message}
+                </FieldError>
+              ) : null}
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <PriceField
-                id="starting-price"
-                label="Harga awal"
-                onChange={setStartingPrice}
-                placeholder="6.500.000"
-                value={startingPrice}
+              <Controller
+                control={control}
+                name="startingPrice"
+                render={({ field }) => (
+                  <PriceField
+                    error={errors.startingPrice?.message}
+                    id="starting-price"
+                    label="Harga awal"
+                    onChange={field.onChange}
+                    placeholder="6.500.000"
+                    value={field.value}
+                  />
+                )}
               />
-              <PriceField
-                id="min-increment"
-                label="Kelipatan"
-                onChange={setMinIncrement}
-                placeholder="100.000"
-                value={minIncrement}
+              <Controller
+                control={control}
+                name="minIncrement"
+                render={({ field }) => (
+                  <PriceField
+                    error={errors.minIncrement?.message}
+                    id="min-increment"
+                    label="Kelipatan"
+                    onChange={field.onChange}
+                    placeholder="100.000"
+                    value={field.value}
+                  />
+                )}
               />
               <Field className="sm:col-span-2">
                 <FieldLabel htmlFor="duration">Durasi, menit</FieldLabel>
                 <Input
-                  defaultValue={10}
+                  aria-describedby={
+                    errors.durationMinutes ? "duration-error" : undefined
+                  }
+                  aria-invalid={Boolean(errors.durationMinutes)}
                   id="duration"
                   inputMode="numeric"
                   max={60}
                   min={1}
-                  name="durationMinutes"
                   step={1}
                   type="number"
+                  {...register("durationMinutes", { valueAsNumber: true })}
                 />
+                {errors.durationMinutes ? (
+                  <FieldError id="duration-error">
+                    {errors.durationMinutes.message}
+                  </FieldError>
+                ) : null}
               </Field>
             </div>
 
@@ -293,8 +319,8 @@ export function DraftForm({ onCreate }: DraftFormProps) {
               ) : null}
             </div>
 
-            <Button className="w-full" type="submit">
-              Simpan sebagai draft
+            <Button className="w-full" disabled={isSubmitting} type="submit">
+              {isSubmitting ? "Menyimpan..." : "Simpan sebagai draft"}
             </Button>
           </FieldGroup>
         </form>

@@ -285,7 +285,9 @@ func (s *auctionService) Results(ctx context.Context, limit int) ([]auction_resp
 
 		for _, auction := range auctions {
 			result = append(result, auction_response.ResultResponse{
-				Auction: toAuctionResponse(auction),
+				Auction:    toAuctionResponse(auction.Auction),
+				WinnerName: auction.WinnerName,
+				BidCount:   auction.BidCount,
 			})
 		}
 		return nil

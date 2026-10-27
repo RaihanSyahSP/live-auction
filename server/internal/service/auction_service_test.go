@@ -438,4 +438,10 @@ func TestAuctionServiceBidsAndResults(t *testing.T) {
 	if results[0].Auction.FinalPrice == nil || *results[0].Auction.FinalPrice != 1500 {
 		t.Errorf("FinalPrice = %v, want 1500", results[0].Auction.FinalPrice)
 	}
+	if results[0].WinnerName != "Bidder" {
+		t.Errorf("WinnerName = %q, want Bidder", results[0].WinnerName)
+	}
+	if results[0].BidCount != 1 {
+		t.Errorf("BidCount = %d, want 1", results[0].BidCount)
+	}
 }
