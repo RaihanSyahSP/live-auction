@@ -16,11 +16,11 @@ Fitur yang sudah tersedia:
 ## Prasyarat
 
 - Go sesuai `go.mod`
-- PostgreSQL 18
+- PostgreSQL 15+ (PostgreSQL 18 memakai `uuidv7()` native)
 - `golang-migrate`
 - PowerShell untuk contoh perintah di dokumen ini
 
-PostgreSQL 18 diperlukan karena schema memakai `uuidv7()`.
+Schema memakai `uuidv7()`. PostgreSQL 18 memakai fungsi native; PostgreSQL 15–17 memakai fallback yang dibuat oleh migration.
 
 ## Environment
 

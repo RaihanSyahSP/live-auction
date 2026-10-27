@@ -1,3 +1,24 @@
+-- PostgreSQL 18 provides uuidv7() natively. Supabase and older PostgreSQL
+-- versions use this compatible public fallback.
+create or replace function public.uuidv7()
+returns uuid
+language sql
+volatile
+as $$
+    select (
+        lpad(
+            to_hex(
+                (extract(epoch from clock_timestamp()) * 1000)::bigint
+            ),
+            12,
+            '0'
+        )
+        || '7'
+        || substr(md5(random()::text), 1, 3)
+        || substr('89ab', (floor(random() * 4) + 1)::int, 1)
+        || substr(md5(random()::text), 1, 15)
+    )::uuid
+$$;
 
 CREATE TABLE users (
     id uuid primary key default uuidv7(),

@@ -21,10 +21,9 @@ Di SQL Editor Supabase:
 
 ```sql
 select version();
-select uuidv7();
 ```
 
-Schema LELANG memakai `uuidv7()`. Kalau query kedua gagal, project Supabase belum menjalankan PostgreSQL 18. Jangan lanjut sebelum fungsi tersebut tersedia.
+Schema LELANG memakai `uuidv7()`. Migration menyediakan fallback untuk PostgreSQL sebelum 18, jadi Supabase PostgreSQL 15+ tetap bisa dipakai.
 
 Ambil connection string dari Supabase. Untuk Render yang umumnya IPv4, pakai **Session Pooler** (port `5432`) agar tidak bergantung pada koneksi IPv6:
 
@@ -172,3 +171,26 @@ docker run --rm -p 10000:10000 `
 ```
 
 Buka `http://localhost:10000`.
+
+## Troubleshooting
+
+### `function uuidv7() does not exist`
+
+Migration sekarang membuat fallback `public.uuidv7()`. Pastikan image yang dipakai adalah versi terbaru dan database belum dalam kondisi dirty.
+
+### `Dirty database version`
+
+Terjadi karena migration sebelumnya gagal di tengah jalan. Untuk database demo/fresh yang **belum berisi data penting**, reset objek LELANG di SQL Editor Supabase:
+
+```sql
+drop table if exists bids cascade;
+drop table if exists auctions cascade;
+drop table if exists refresh_tokens cascade;
+drop table if exists users cascade;
+drop table if exists schema_migrations;
+drop function if exists public.uuidv7();
+```
+
+Lalu redeploy Render. Migration akan membuat ulang function, tabel, dan `schema_migrations` dari awal.
+
+Jangan jalankan reset di atas jika sudah ada data produksi. Untuk data yang sudah penting, hentikan deploy dan periksa objek/tabel yang sudah terbuat sebelum melakukan perubahan manual.
