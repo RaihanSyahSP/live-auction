@@ -5,7 +5,7 @@ export function meta() {
     { title: "Admin: LELANG" },
     {
       name: "description",
-      content: "Halaman admin demo untuk mengelola lelang.",
+      content: "Halaman admin untuk mengelola lelang.",
     },
   ];
 }

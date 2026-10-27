@@ -2,19 +2,21 @@ import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { idr } from "~/features/auction/demo";
-import type { AdminAuction } from "../demo";
-import { formatDuration } from "../demo";
+import type { AdminAuction } from "../model";
+import { formatDuration } from "../model";
 
 type AdminAuctionCardProps = {
   auction: AdminAuction;
+  busy: boolean;
   hasLive: boolean;
-  onDelete: (id: number) => void;
-  onEnd: (id: number) => void;
-  onStart: (id: number) => void;
+  onDelete: (id: string) => void | Promise<void>;
+  onEnd: (id: string) => void | Promise<void>;
+  onStart: (id: string) => void | Promise<void>;
 };
 
 export function AdminAuctionCard({
   auction,
+  busy,
   hasLive,
   onDelete,
   onEnd,
@@ -70,30 +72,22 @@ export function AdminAuctionCard({
         </div>
         <div>
           <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
-            Bid
+            Kelipatan
           </dt>
-          <dd className="mt-0.5 text-[0.88rem]">{auction.bids.length} bid</dd>
+          <dd className="mt-0.5 text-[0.88rem] tabular-nums">
+            {idr.format(auction.minIncrement)}
+          </dd>
         </div>
 
         {isDraft ? (
-          <>
-            <div>
-              <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
-                Kelipatan
-              </dt>
-              <dd className="mt-0.5 text-[0.88rem] tabular-nums">
-                {idr.format(auction.minIncrement)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
-                Durasi
-              </dt>
-              <dd className="mt-0.5 text-[0.88rem]">
-                {formatDuration(auction.durationSeconds)}
-              </dd>
-            </div>
-          </>
+          <div className="col-span-2">
+            <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
+              Durasi
+            </dt>
+            <dd className="mt-0.5 text-[0.88rem]">
+              {formatDuration(auction.durationSeconds)}
+            </dd>
+          </div>
         ) : null}
 
         {isLive ? (
@@ -113,8 +107,11 @@ export function AdminAuctionCard({
               <dt className="text-[0.65rem] uppercase tracking-[0.08em] text-muted">
                 Pemenang
               </dt>
-              <dd className="mt-0.5 text-[0.88rem]">
-                {auction.winner || "Tidak terjual"}
+              <dd
+                className="mt-0.5 text-[0.88rem]"
+                title={auction.winnerId ?? undefined}
+              >
+                {auction.winnerId ? "Sudah ditetapkan" : "Tidak terjual"}
               </dd>
             </div>
             <div>
@@ -135,7 +132,7 @@ export function AdminAuctionCard({
         {isDraft ? (
           <>
             <Button
-              disabled={hasLive}
+              disabled={busy || hasLive}
               onClick={() => onStart(auction.id)}
               size="sm"
               title={hasLive ? "Akhiri lelang live dulu." : undefined}
@@ -145,6 +142,7 @@ export function AdminAuctionCard({
               Start lelang
             </Button>
             <Button
+              disabled={busy}
               onClick={() => onDelete(auction.id)}
               size="sm"
               type="button"
@@ -164,6 +162,7 @@ export function AdminAuctionCard({
               Buka ruang
             </Link>
             <Button
+              disabled={busy}
               onClick={() => onEnd(auction.id)}
               size="sm"
               type="button"

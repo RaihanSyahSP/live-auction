@@ -1,3 +1,5 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, Outlet } from "react-router";
 import { SiteFooter } from "~/components/layout/site-footer";
 import { SiteHeader } from "~/components/layout/site-header";
@@ -6,10 +8,22 @@ import { adminMiddleware, authMiddleware } from "~/features/auth/middleware";
 export const middleware = [authMiddleware, adminMiddleware];
 
 export default function AdminLayout() {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: 1,
+            staleTime: 15_000,
+          },
+        },
+      }),
+  );
+
   return (
-    <>
-      <SiteHeader note="Admin prototipe">
-        <span className="text-label uppercase text-muted">ADMIN DEMO</span>
+    <QueryClientProvider client={queryClient}>
+      <SiteHeader note="Admin">
+        <span className="text-label uppercase text-muted">ADMIN</span>
         <Link className="text-link" to="/">
           Buka ruang lelang
         </Link>
@@ -20,11 +34,8 @@ export default function AdminLayout() {
       </main>
 
       <SiteFooter>
-        <p>
-          Mode demo admin. Perubahan hanya tersimpan di memori halaman ini dan
-          tidak memengaruhi halaman lelang publik.
-        </p>
+        <p>Perubahan di halaman ini langsung tersimpan ke backend.</p>
       </SiteFooter>
-    </>
+    </QueryClientProvider>
   );
 }
