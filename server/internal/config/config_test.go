@@ -19,6 +19,7 @@ func setValidEnv(t *testing.T) {
 	t.Setenv("REFRESH_TOKEN_TTL", "")
 	t.Setenv("REFRESH_GRACE_PERIOD", "")
 	t.Setenv("COOKIE_SECURE", "")
+	t.Setenv("DB_MAX_CONNS", "")
 	t.Setenv("SEED_ADMIN_EMAIL", "")
 	t.Setenv("SEED_ADMIN_PASSWORD", "")
 	t.Setenv("SEED_BIDDER_PASSWORD", "")
@@ -46,6 +47,36 @@ func TestLoadConfigDefaults(t *testing.T) {
 	}
 	if cfg.CookieSecure {
 		t.Error("CookieSecure = true, want false")
+	}
+	if cfg.DBMaxConns != 20 {
+		t.Errorf("DBMaxConns = %d, want 20", cfg.DBMaxConns)
+	}
+}
+
+func TestLoadConfigParsesDBMaxConns(t *testing.T) {
+	setValidEnv(t)
+	t.Setenv("DB_MAX_CONNS", "7")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.DBMaxConns != 7 {
+		t.Errorf("DBMaxConns = %d, want 7", cfg.DBMaxConns)
+	}
+}
+
+func TestLoadConfigRejectsInvalidDBMaxConns(t *testing.T) {
+	for _, value := range []string{"0", "-1", "abc"} {
+		t.Run(value, func(t *testing.T) {
+			setValidEnv(t)
+			t.Setenv("DB_MAX_CONNS", value)
+
+			if _, err := config.Load(); err == nil {
+				t.Fatalf("Load() error = nil, want error for DB_MAX_CONNS=%s", value)
+			}
+		})
 	}
 }
 

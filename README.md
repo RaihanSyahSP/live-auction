@@ -1,6 +1,10 @@
 # Lelang
 
-Prototipe UI ruang lelang real-time untuk elektronik bekas, lengkap dengan login, daftar, akun, hasil lelang, dan admin demo. Fokus tahap ini: alur bid, harga berjalan, ledger, presence, lifecycle lelang, dan sinkronisasi antar halaman. Backend Go dan PostgreSQL menyusul sesuai spec.
+Aplikasi lelang real-time untuk elektronik bekas: React Router SSR, Go API, PostgreSQL, cookie auth, dan WebSocket.
+
+Panduan deploy produksi/demo ada di [`DEPLOY.md`](DEPLOY.md).
+
+Dokumen di bawah ini masih memuat catatan prototipe lama; gunakan `DEPLOY.md` untuk menjalankan versi web + backend saat ini.
 
 ## Isi repo
 
