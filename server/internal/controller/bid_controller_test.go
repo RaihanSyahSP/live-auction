@@ -22,8 +22,13 @@ import (
 )
 
 type fakeBidService struct {
-	result bid_response.PlaceBidResponse
-	err    error
+	result      bid_response.PlaceBidResponse
+	myBids      bid_response.MyBidsResponse
+	err         error
+	myBidsPage  int
+	myBidsLimit int
+	myBidsAll   bool
+	myBidsUser  uuid.UUID
 }
 
 func (f *fakeBidService) PlaceBid(
@@ -33,6 +38,20 @@ func (f *fakeBidService) PlaceBid(
 	req bid_request.PlaceBidRequest,
 ) (bid_response.PlaceBidResponse, error) {
 	return f.result, f.err
+}
+
+func (f *fakeBidService) MyBids(
+	ctx context.Context,
+	userID uuid.UUID,
+	page int,
+	limit int,
+	all bool,
+) (bid_response.MyBidsResponse, error) {
+	f.myBidsUser = userID
+	f.myBidsPage = page
+	f.myBidsLimit = limit
+	f.myBidsAll = all
+	return f.myBids, f.err
 }
 
 func withBidder(req *http.Request) *http.Request {
@@ -214,6 +233,71 @@ func TestBidControllerMalformedJSON(t *testing.T) {
 
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestBidControllerMyBids(t *testing.T) {
+	userID := uuid.New()
+	svc := &fakeBidService{
+		myBids: bid_response.MyBidsResponse{
+			Bids: []bid_response.MyBidResponse{},
+			Pagination: bid_response.MyBidsPagination{
+				Page:       2,
+				Limit:      5,
+				Total:      0,
+				TotalPages: 0,
+			},
+		},
+	}
+	handler := controller.NewBidController(svc, realtime.NewRoomManager())
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/me/bids?page=2&limit=5&all=true",
+		nil,
+	)
+	req = req.WithContext(middleware.WithPrincipal(req.Context(), auth.Principal{
+		UserID: userID,
+		Role:   domain.RoleUser,
+	}))
+	rec := httptest.NewRecorder()
+
+	handler.MyBids(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if svc.myBidsUser != userID {
+		t.Errorf("user = %v, want %v", svc.myBidsUser, userID)
+	}
+	if svc.myBidsPage != 2 || svc.myBidsLimit != 5 || !svc.myBidsAll {
+		t.Errorf("params = page %d limit %d all %v, want page 2 limit 5 all true",
+			svc.myBidsPage, svc.myBidsLimit, svc.myBidsAll)
+	}
+}
+
+func TestBidControllerMyBidsRejectsInvalidParams(t *testing.T) {
+	tests := []string{
+		"/api/me/bids?page=0",
+		"/api/me/bids?limit=101",
+		"/api/me/bids?all=not-a-bool",
+	}
+
+	for _, target := range tests {
+		t.Run(target, func(t *testing.T) {
+			handler := controller.NewBidController(
+				&fakeBidService{},
+				realtime.NewRoomManager(),
+			)
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			req = withBidder(req)
+			rec := httptest.NewRecorder()
+
+			handler.MyBids(rec, req)
+
+			if rec.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnprocessableEntity)
+			}
+		})
 	}
 }
 

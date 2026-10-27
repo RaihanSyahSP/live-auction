@@ -141,6 +141,175 @@ func (b *BidRepositoryImpl) ListByAuction(
 	return bids, nil
 }
 
+func (b *BidRepositoryImpl) ListByUserLatest(
+	ctx context.Context,
+	tx pgx.Tx,
+	userID uuid.UUID,
+	limit int,
+	offset int,
+) ([]domain.MyBid, int, error) {
+	const query = `
+		with latest as (
+			select distinct on (b.auction_id)
+				b.id,
+				b.auction_id,
+				b.user_id,
+				b.amount,
+				b.idempotency_key,
+				b.created_at,
+				a.lot,
+				a.title,
+				a.subtitle,
+				a.status as auction_status,
+				a.current_price,
+				a.final_price,
+				a.ends_at,
+				a.ended_at,
+				case
+					when a.status = 'live' and a.highest_bidder_id = b.user_id then 'leading'
+					when a.status = 'live' then 'outbid'
+					when a.status = 'ended' and a.winner_id = b.user_id then 'won'
+					else 'lost'
+				end as bid_status
+			from bids b
+			join auctions a on a.id = b.auction_id
+			where b.user_id = $1
+			order by b.auction_id, b.created_at desc, b.id desc
+		)
+		select
+			id, auction_id, user_id, amount, idempotency_key, created_at,
+			lot, title, subtitle, auction_status, current_price, final_price,
+			ends_at, ended_at, bid_status
+		from latest
+		order by created_at desc, id desc
+		limit $2 offset $3
+	`
+
+	rows, err := tx.Query(ctx, query, userID, limit, offset)
+	items, err := scanMyBids(rows, err)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list latest bids by user: %w", err)
+	}
+
+	var total int
+	if err := tx.QueryRow(
+		ctx,
+		`select count(distinct auction_id) from bids where user_id = $1`,
+		userID,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count latest auctions by user: %w", err)
+	}
+
+	return items, total, nil
+}
+
+func (b *BidRepositoryImpl) ListByUserAll(
+	ctx context.Context,
+	tx pgx.Tx,
+	userID uuid.UUID,
+	limit int,
+	offset int,
+) ([]domain.MyBid, int, error) {
+	const query = `
+		select
+			b.id,
+			b.auction_id,
+			b.user_id,
+			b.amount,
+			b.idempotency_key,
+			b.created_at,
+			a.lot,
+			a.title,
+			a.subtitle,
+			a.status as auction_status,
+			a.current_price,
+			a.final_price,
+			a.ends_at,
+			a.ended_at,
+			case
+				when a.status = 'live' and a.highest_bidder_id = b.user_id then 'leading'
+				when a.status = 'live' then 'outbid'
+				when a.status = 'ended' and a.winner_id = b.user_id then 'won'
+				else 'lost'
+			end as bid_status
+		from bids b
+		join auctions a on a.id = b.auction_id
+		where b.user_id = $1
+		order by b.created_at desc, b.id desc
+		limit $2 offset $3
+	`
+
+	rows, err := tx.Query(ctx, query, userID, limit, offset)
+	items, err := scanMyBids(rows, err)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list bids by user: %w", err)
+	}
+
+	var total int
+	if err := tx.QueryRow(
+		ctx,
+		`select count(*) from bids where user_id = $1`,
+		userID,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count bids by user: %w", err)
+	}
+
+	return items, total, nil
+}
+
+func scanMyBids(rows pgx.Rows, err error) ([]domain.MyBid, error) {
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []domain.MyBid
+	for rows.Next() {
+		item, err := scanMyBid(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func scanMyBid(row pgx.Row) (domain.MyBid, error) {
+	var item domain.MyBid
+	var auctionStatus string
+	var bidStatus string
+
+	err := row.Scan(
+		&item.ID,
+		&item.AuctionID,
+		&item.UserID,
+		&item.Amount,
+		&item.IdempotencyKey,
+		&item.CreatedAt,
+		&item.Auction.Lot,
+		&item.Auction.Title,
+		&item.Auction.Subtitle,
+		&auctionStatus,
+		&item.Auction.CurrentPrice,
+		&item.Auction.FinalPrice,
+		&item.Auction.EndsAt,
+		&item.Auction.EndedAt,
+		&bidStatus,
+	)
+	if err != nil {
+		return domain.MyBid{}, err
+	}
+
+	item.Auction.ID = item.AuctionID
+	item.Auction.Status = domain.AuctionStatus(auctionStatus)
+	item.Status = domain.BidStatus(bidStatus)
+	return item, nil
+}
+
 func scanBid(row pgx.Row) (domain.Bid, error) {
 	var bid domain.Bid
 	err := row.Scan(

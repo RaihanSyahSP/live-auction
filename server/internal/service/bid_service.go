@@ -27,6 +27,13 @@ type BidService interface {
 		auctionID uuid.UUID,
 		req bid_request.PlaceBidRequest,
 	) (bid_response.PlaceBidResponse, error)
+	MyBids(
+		ctx context.Context,
+		userID uuid.UUID,
+		page int,
+		limit int,
+		all bool,
+	) (bid_response.MyBidsResponse, error)
 }
 
 type bidService struct {
@@ -145,6 +152,68 @@ func (s *bidService) PlaceBid(ctx context.Context, userID uuid.UUID, auctionID u
 	})
 
 	return result, err
+}
+
+// MyBids implements [BidService].
+func (s *bidService) MyBids(
+	ctx context.Context,
+	userID uuid.UUID,
+	page int,
+	limit int,
+	all bool,
+) (bid_response.MyBidsResponse, error) {
+	offset := (page - 1) * limit
+
+	var items []domain.MyBid
+	var total int
+
+	err := s.tx.WithinTx(ctx, func(tx pgx.Tx) error {
+		var err error
+		if all {
+			items, total, err = s.bids.ListByUserAll(ctx, tx, userID, limit, offset)
+		} else {
+			items, total, err = s.bids.ListByUserLatest(ctx, tx, userID, limit, offset)
+		}
+		return err
+	})
+	if err != nil {
+		return bid_response.MyBidsResponse{}, err
+	}
+
+	result := bid_response.MyBidsResponse{
+		Bids: make([]bid_response.MyBidResponse, 0, len(items)),
+		Pagination: bid_response.MyBidsPagination{
+			Page:  page,
+			Limit: limit,
+			Total: total,
+		},
+	}
+
+	if total > 0 {
+		result.Pagination.TotalPages = (total + limit - 1) / limit
+	}
+
+	for _, item := range items {
+		result.Bids = append(result.Bids, bid_response.MyBidResponse{
+			ID:        item.ID,
+			Amount:    item.Amount,
+			CreatedAt: item.CreatedAt,
+			Status:    item.Status,
+			Auction: bid_response.MyBidAuctionResponse{
+				ID:           item.Auction.ID,
+				Lot:          item.Auction.Lot,
+				Title:        item.Auction.Title,
+				Subtitle:     item.Auction.Subtitle,
+				Status:       item.Auction.Status,
+				CurrentPrice: item.Auction.CurrentPrice,
+				FinalPrice:   item.Auction.FinalPrice,
+				EndsAt:       item.Auction.EndsAt,
+				EndedAt:      item.Auction.EndedAt,
+			},
+		})
+	}
+
+	return result, nil
 }
 
 func NewBidService(
