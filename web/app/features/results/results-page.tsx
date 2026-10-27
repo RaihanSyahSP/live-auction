@@ -1,35 +1,72 @@
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "~/components/ui/button";
+import { auctionApi } from "~/features/auction/api";
+import { getErrorMessage } from "~/lib/api-client";
 import { ResultCard } from "./components/result-card";
-import { demoResults } from "./demo";
+
+const resultsKey = ["results"] as const;
 
 export default function ResultsPage() {
+  const resultsQuery = useQuery({
+    queryKey: resultsKey,
+    queryFn: () => auctionApi.results(),
+    enabled: typeof window !== "undefined",
+  });
+
+  const results = resultsQuery.data ?? [];
+
   return (
-    <>
-      <p className="mt-4 border border-rule bg-surface px-3.5 py-3 text-sm">
-        <strong>Data demo.</strong> Hasil lelang di halaman ini belum diambil
-        dari backend.
-      </p>
+    <section
+      aria-labelledby="results-title"
+      className="py-[clamp(28px,5vw,56px)]"
+    >
+      <div className="border-b-2 border-ink pb-3">
+        <p className="kicker">Arsip</p>
+        <h1
+          className="font-serif text-[clamp(2.3rem,5vw,3.6rem)] font-normal leading-none"
+          id="results-title"
+        >
+          Hasil lelang
+        </h1>
+        <p className="mt-2 text-[0.82rem] text-muted tabular-nums">
+          {resultsQuery.isSuccess
+            ? `${results.length} lelang selesai`
+            : "Memuat arsip..."}
+        </p>
+      </div>
 
-      <section
-        aria-labelledby="results-title"
-        className="py-[clamp(28px,5vw,56px)]"
-      >
-        <div className="border-b-2 border-ink pb-3">
-          <p className="kicker">Arsip</p>
-          <h1
-            className="font-serif text-[clamp(2.3rem,5vw,3.6rem)] font-normal leading-none"
-            id="results-title"
-          >
-            Hasil lelang
-          </h1>
-          <p className="mt-2 text-[0.82rem] text-muted tabular-nums">
-            {demoResults.length} lelang selesai
+      {resultsQuery.isPending ? (
+        <p className="mt-4 border border-rule bg-surface px-3.5 py-3 text-sm">
+          Memuat hasil lelang...
+        </p>
+      ) : null}
+
+      {resultsQuery.isError ? (
+        <div
+          className="mt-4 border border-accent bg-paper px-3.5 py-3 text-sm"
+          role="alert"
+        >
+          <p className="font-semibold">Gagal memuat hasil lelang.</p>
+          <p className="mt-1 text-muted">
+            {getErrorMessage(resultsQuery.error)}
           </p>
+          <Button
+            className="mt-3"
+            onClick={() => void resultsQuery.refetch()}
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
+            Coba lagi
+          </Button>
         </div>
+      ) : null}
 
-        {demoResults.length > 0 ? (
+      {resultsQuery.isSuccess ? (
+        results.length > 0 ? (
           <div className="mt-4 grid gap-3">
-            {demoResults.map((result) => (
-              <ResultCard key={result.id} result={result} />
+            {results.map((result) => (
+              <ResultCard key={result.auction.id} result={result} />
             ))}
           </div>
         ) : (
@@ -39,8 +76,8 @@ export default function ResultsPage() {
               Buka ruang lelang
             </a>
           </div>
-        )}
-      </section>
-    </>
+        )
+      ) : null}
+    </section>
   );
 }

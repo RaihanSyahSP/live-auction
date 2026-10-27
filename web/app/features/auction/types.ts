@@ -54,3 +54,9 @@ export interface PlaceBidResponse {
   extended: boolean;
   previous_highest_user_id?: string | null;
 }
+
+export interface AuctionResult {
+  auction: Auction;
+  winner_name: string;
+  bid_count: number;
+}

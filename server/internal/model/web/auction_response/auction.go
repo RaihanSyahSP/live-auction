@@ -56,5 +56,7 @@ type AuctionDetailResponse struct {
 }
 
 type ResultResponse struct {
-	Auction AuctionResponse `json:"auction"`
+	Auction    AuctionResponse `json:"auction"`
+	WinnerName string          `json:"winner_name"`
+	BidCount   int             `json:"bid_count"`
 }

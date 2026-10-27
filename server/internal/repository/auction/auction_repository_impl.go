@@ -192,16 +192,21 @@ func (r *AuctionRepositoryImpl) ListEnded(
 	ctx context.Context,
 	tx pgx.Tx,
 	limit int,
-) ([]domain.Auction, error) {
+) ([]domain.ResultView, error) {
 	const query = `
-		select ` + auctionColumns + `
+		select ` + auctionColumns + `,
+			coalesce(
+				(select display_name from users where id = auctions.winner_id),
+				''
+			),
+			(select count(*) from bids where auction_id = auctions.id)
 		from auctions
 		where status = 'ended'
 		order by ended_at desc
 		limit $1
 	`
 
-	return scanAuctions(tx.Query(ctx, query, limit))
+	return scanResultViews(tx.Query(ctx, query, limit))
 }
 
 // LockByID implements [AuctionRepository].
@@ -304,7 +309,42 @@ func scanAuction(row pgx.Row) (domain.Auction, error) {
 	var rawSpecs []byte
 	var status string
 
-	err := row.Scan(
+	if err := row.Scan(auctionScanDest(&auction, &rawSpecs, &status)...); err != nil {
+		return domain.Auction{}, err
+	}
+
+	if err := finishAuction(&auction, rawSpecs, status); err != nil {
+		return domain.Auction{}, err
+	}
+
+	return auction, nil
+}
+
+func scanResultView(row pgx.Row) (domain.ResultView, error) {
+	var result domain.ResultView
+	var rawSpecs []byte
+	var status string
+
+	dest := auctionScanDest(&result.Auction, &rawSpecs, &status)
+	dest = append(dest, &result.WinnerName, &result.BidCount)
+
+	if err := row.Scan(dest...); err != nil {
+		return domain.ResultView{}, err
+	}
+
+	if err := finishAuction(&result.Auction, rawSpecs, status); err != nil {
+		return domain.ResultView{}, err
+	}
+
+	return result, nil
+}
+
+func auctionScanDest(
+	auction *domain.Auction,
+	rawSpecs *[]byte,
+	status *string,
+) []any {
+	return []any{
 		&auction.ID,
 		&auction.CreatedBy,
 		&auction.Lot,
@@ -313,14 +353,14 @@ func scanAuction(row pgx.Row) (domain.Auction, error) {
 		&auction.Description,
 		&auction.Condition,
 		&auction.Includes,
-		&rawSpecs,
+		rawSpecs,
 		&auction.ImageURLs,
 		&auction.StartingPrice,
 		&auction.MinIncrement,
 		&auction.DurationSeconds,
 		&auction.CurrentPrice,
 		&auction.HighestBidderID,
-		&status,
+		status,
 		&auction.StartsAt,
 		&auction.EndsAt,
 		&auction.EndedAt,
@@ -329,19 +369,22 @@ func scanAuction(row pgx.Row) (domain.Auction, error) {
 		&auction.WinnerID,
 		&auction.FinalPrice,
 		&auction.CreatedAt,
-	)
-	if err != nil {
-		return domain.Auction{}, err
 	}
+}
 
+func finishAuction(
+	auction *domain.Auction,
+	rawSpecs []byte,
+	status string,
+) error {
 	if len(rawSpecs) > 0 {
 		if err := json.Unmarshal(rawSpecs, &auction.Specs); err != nil {
-			return domain.Auction{}, fmt.Errorf("unmarshal auction specs: %w", err)
+			return fmt.Errorf("unmarshal auction specs: %w", err)
 		}
 	}
 
 	auction.Status = domain.AuctionStatus(status)
-	return auction, nil
+	return nil
 }
 
 func scanAuctions(rows pgx.Rows, err error) ([]domain.Auction, error) {
@@ -363,6 +406,27 @@ func scanAuctions(rows pgx.Rows, err error) ([]domain.Auction, error) {
 	}
 
 	return auctions, nil
+}
+
+func scanResultViews(rows pgx.Rows, err error) ([]domain.ResultView, error) {
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []domain.ResultView
+	for rows.Next() {
+		result, err := scanResultView(rows)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func marshalSpecs(specs []domain.Spec) (string, error) {

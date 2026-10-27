@@ -45,3 +45,9 @@ type Auction struct {
 	FinalPrice      *int64
 	CreatedAt       time.Time
 }
+
+type ResultView struct {
+	Auction
+	WinnerName string
+	BidCount   int
+}

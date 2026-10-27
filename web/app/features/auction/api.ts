@@ -1,5 +1,11 @@
 import { apiClient, assertOk } from "~/lib/api-client";
-import type { Auction, AuctionDetail, PlaceBidResponse, Spec } from "./types";
+import type {
+  Auction,
+  AuctionDetail,
+  AuctionResult,
+  PlaceBidResponse,
+  Spec,
+} from "./types";
 
 export type CreateAuctionInput = {
   title: string;
@@ -36,6 +42,12 @@ export const auctionApi = {
     );
     await assertOk(response);
     return (await response.json()) as AuctionDetail;
+  },
+
+  async results(limit = 20): Promise<AuctionResult[]> {
+    const response = await apiClient.fetch(`/results?limit=${limit}`);
+    await assertOk(response);
+    return (await response.json()) as AuctionResult[];
   },
 
   async placeBid(
