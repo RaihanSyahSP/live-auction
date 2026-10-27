@@ -43,7 +43,10 @@ export default function AuctionPage() {
   const detail = currentQuery.data ?? null;
   const auction = detail?.auction ?? null;
   const auctionId = auction?.id ?? null;
-  const { outbidAt, viewerCount } = useAuctionSocket(auctionId);
+  const { outbidAt, sessionExpired, viewerCount } = useAuctionSocket(
+    auctionId,
+    Boolean(user),
+  );
 
   const bidMutation = useMutation({
     mutationFn: ({ amount, auctionId, idempotencyKey }: BidInput) =>
@@ -94,7 +97,11 @@ export default function AuctionPage() {
   );
   const isCreator = Boolean(auction && user && auction.created_by === user.id);
   const canBid = Boolean(
-    user && auction?.status === "live" && !isCreator && !isEnded,
+    user &&
+      auction?.status === "live" &&
+      !isCreator &&
+      !isEnded &&
+      !sessionExpired,
   );
   const userDisplayName = user ? (user.display_name ?? user.email) : null;
   const highestBidderId =
@@ -273,6 +280,7 @@ export default function AuctionPage() {
           isCreator={isCreator}
           isEnded={isEnded}
           isSubmitting={bidMutation.isPending}
+          sessionExpired={sessionExpired}
           minimumBid={minimumBid}
           onAmountChange={handleAmountChange}
           onSubmit={handleSubmit}

@@ -31,6 +31,7 @@ type BidPanelProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   priceFlash: boolean;
   remaining: number;
+  sessionExpired: boolean;
   status: string;
   userDisplayName: string | null;
   viewerCount: number;
@@ -55,6 +56,7 @@ export function BidPanel({
   onSubmit,
   priceFlash,
   remaining,
+  sessionExpired,
   status,
   userDisplayName,
   viewerCount,
@@ -128,7 +130,15 @@ export function BidPanel({
             <p className="text-label uppercase text-muted">Identitas penawar</p>
             {userDisplayName ? (
               <p className="mt-1.5 text-[0.95rem]">
-                {isCreator ? (
+                {sessionExpired ? (
+                  <>
+                    Sesi berakhir.{" "}
+                    <Link className="text-link" to="/login?next=%2F">
+                      Masuk lagi
+                    </Link>{" "}
+                    untuk menerima notifikasi outbid.
+                  </>
+                ) : isCreator ? (
                   "Akun ini adalah pembuat lelang dan tidak bisa memasang bid."
                 ) : (
                   <>
