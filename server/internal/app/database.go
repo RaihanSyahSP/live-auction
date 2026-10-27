@@ -16,7 +16,10 @@ func NewDB(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("parse database URL: %w", err)
 	}
 
-	poolConfig.MaxConns = 20
+	poolConfig.MaxConns = cfg.DBMaxConns
+	if poolConfig.MaxConns <= 0 {
+		poolConfig.MaxConns = 20
+	}
 	poolConfig.MaxConnLifetime = time.Hour
 	poolConfig.MaxConnIdleTime = 10 * time.Minute
 

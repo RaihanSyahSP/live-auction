@@ -1,0 +1,16 @@
+# Jangan kirim node_modules, build lokal, atau .env ke Docker build context.
+.git
+.gitignore
+.zed
+.superpowers
+docs
+prototype
+server/.env
+server/bin
+server/*.exe
+server/coverage.out
+web/.react-router
+web/build
+web/node_modules
+**/*.log
+**/node_modules

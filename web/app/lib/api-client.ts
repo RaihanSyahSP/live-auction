@@ -22,6 +22,15 @@ export class ApiError extends Error {
 }
 
 function resolveUrl(baseURL: string, path: string, request?: Request) {
+  const internalBaseURL =
+    request && typeof process !== "undefined"
+      ? process.env.INTERNAL_API_URL?.trim()
+      : undefined;
+
+  if (internalBaseURL) {
+    return `${internalBaseURL.replace(/\/$/, "")}${path}`;
+  }
+
   const url = `${baseURL.replace(/\/$/, "")}${path}`;
 
   if (/^https?:\/\//i.test(url)) {

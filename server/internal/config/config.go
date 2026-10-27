@@ -18,6 +18,7 @@ type Config struct {
 	RefreshTokenTTL    time.Duration
 	RefreshGracePeriod time.Duration
 	CookieSecure       bool
+	DBMaxConns         int32
 	SeedAdminEmail     string
 	SeedAdminPassword  string
 	SeedBidderPassword string
@@ -45,6 +46,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.CookieSecure, err = boolEnv("COOKIE_SECURE", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.DBMaxConns, err = int32Env("DB_MAX_CONNS", 20); err != nil {
 		return Config{}, err
 	}
 
@@ -103,6 +107,9 @@ func (c Config) validate() error {
 	if c.RefreshGracePeriod >= c.RefreshTokenTTL {
 		return fmt.Errorf("REFRESH_GRACE_PERIOD must be less than REFRESH_TOKEN_TTL")
 	}
+	if c.DBMaxConns <= 0 {
+		return fmt.Errorf("DB_MAX_CONNS must be greater than zero")
+	}
 
 	if origin.Scheme == "https" && !c.CookieSecure {
 		return fmt.Errorf("COOKIE_SECURE must be true when APP_ORIGIN uses https")
@@ -130,6 +137,19 @@ func durationEnv(key string, fallback time.Duration) (time.Duration, error) {
 		return 0, fmt.Errorf("%s: %w", key, err)
 	}
 	return duration, nil
+}
+
+func int32Env(key string, fallback int32) (int32, error) {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseInt(value, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", key, err)
+	}
+	return int32(parsed), nil
 }
 
 func boolEnv(key string, fallback bool) (bool, error) {
