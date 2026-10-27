@@ -43,7 +43,7 @@ export default function PublicLayout() {
       </SiteHeader>
 
       <main className="flex-1" id="main">
-        <Outlet />
+        <Outlet context={{ user }} />
       </main>
 
       <SiteFooter

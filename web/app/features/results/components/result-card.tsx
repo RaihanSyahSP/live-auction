@@ -1,4 +1,4 @@
-import { idr } from "~/features/auction/demo";
+import { idr } from "~/features/auction/format";
 import type { DemoResult } from "../demo";
 
 const dateTimeFormat = new Intl.DateTimeFormat("id-ID", {

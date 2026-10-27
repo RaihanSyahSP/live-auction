@@ -13,9 +13,9 @@ type Bid struct {
 	Amount         int64
 	IdempotencyKey uuid.UUID
 	CreatedAt      time.Time
+	DisplayName    string
 }
 
 type BidView struct {
 	Bid
-	DisplayName string
 }

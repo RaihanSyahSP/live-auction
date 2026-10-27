@@ -1,7 +1,7 @@
 import { Form, Link, useOutletContext } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { idr } from "~/features/auction/demo";
+import { idr } from "~/features/auction/format";
 import type { User } from "../auth/types";
 import { type AccountBidStatus, bidStatusLabel, demoAccountBids } from "./demo";
 

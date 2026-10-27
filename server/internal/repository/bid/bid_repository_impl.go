@@ -23,9 +23,21 @@ var _ BidRepository = (*BidRepositoryImpl)(nil)
 
 func (b *BidRepositoryImpl) Insert(ctx context.Context, tx pgx.Tx, bid domain.Bid) (domain.Bid, error) {
 	const query = `
-		insert into bids (auction_id, user_id, amount, idempotency_key)
-		values ($1, $2, $3, $4)
-		returning id, auction_id, user_id, amount, idempotency_key, created_at
+		with inserted as (
+			insert into bids (auction_id, user_id, amount, idempotency_key)
+			values ($1, $2, $3, $4)
+			returning id, auction_id, user_id, amount, idempotency_key, created_at
+		)
+		select
+			i.id,
+			i.auction_id,
+			i.user_id,
+			i.amount,
+			i.idempotency_key,
+			i.created_at,
+			u.display_name
+		from inserted i
+		join users u on u.id = i.user_id
 	`
 
 	inserted, err := scanBid(tx.QueryRow(
@@ -54,9 +66,17 @@ func (b *BidRepositoryImpl) FindByIdempotencyKey(
 	key uuid.UUID,
 ) (domain.Bid, error) {
 	const query = `
-		select id, auction_id, user_id, amount, idempotency_key, created_at
-		from bids
-		where auction_id = $1 and user_id = $2 and idempotency_key = $3
+		select
+			b.id,
+			b.auction_id,
+			b.user_id,
+			b.amount,
+			b.idempotency_key,
+			b.created_at,
+			u.display_name
+		from bids b
+		join users u on u.id = b.user_id
+		where b.auction_id = $1 and b.user_id = $2 and b.idempotency_key = $3
 	`
 
 	bid, err := scanBid(tx.QueryRow(ctx, query, auctionID, userID, key))
@@ -130,6 +150,7 @@ func scanBid(row pgx.Row) (domain.Bid, error) {
 		&bid.Amount,
 		&bid.IdempotencyKey,
 		&bid.CreatedAt,
+		&bid.DisplayName,
 	)
 	if err != nil {
 		return domain.Bid{}, err

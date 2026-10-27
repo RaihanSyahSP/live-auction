@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { idr } from "~/features/auction/demo";
+import { formatLot, idr } from "~/features/auction/format";
 import type { AdminAuction } from "../model";
 import { formatDuration } from "../model";
 
@@ -48,7 +48,7 @@ export function AdminAuctionCard({
           {statusLabel}
         </p>
         <p className="text-[0.7rem] tracking-[0.08em] text-muted">
-          LOT {auction.lot}
+          {formatLot(auction.lot)}
         </p>
       </div>
 

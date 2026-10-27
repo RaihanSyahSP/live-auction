@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import {
   Field,
@@ -8,48 +9,54 @@ import {
 } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
-import {
-  ANTI_SNIPE_SECONDS,
-  DEMO_DURATION_SECONDS,
-  formatRemaining,
-  idr,
-  MAX_EXTENSIONS,
-  numberFormat,
-} from "../demo";
+import { formatRemaining, idr, numberFormat } from "../format";
+import { ANTI_SNIPE_SECONDS, MAX_EXTENSIONS } from "../rules";
 
 type BidPanelProps = {
   amount: number;
   bidCount: number;
+  canBid: boolean;
   currentPrice: number;
+  durationSeconds: number;
   error: string;
   extensionCount: number;
+  finalPrice: number | null;
   highestBidder: string;
   increment: number;
+  isCreator: boolean;
   isEnded: boolean;
+  isSubmitting: boolean;
   minimumBid: number;
   onAmountChange: (value: number) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   priceFlash: boolean;
   remaining: number;
   status: string;
+  userDisplayName: string | null;
   viewerCount: number;
 };
 
 export function BidPanel({
   amount,
   bidCount,
+  canBid,
   currentPrice,
+  durationSeconds,
   error,
   extensionCount,
+  finalPrice,
   highestBidder,
   increment,
+  isCreator,
   isEnded,
+  isSubmitting,
   minimumBid,
   onAmountChange,
   onSubmit,
   priceFlash,
   remaining,
   status,
+  userDisplayName,
   viewerCount,
 }: BidPanelProps) {
   const quickAmounts = [
@@ -57,7 +64,7 @@ export function BidPanel({
     minimumBid + increment,
     minimumBid + increment * 4,
   ];
-  const totalSeconds = DEMO_DURATION_SECONDS + extensionCount * 60;
+  const totalSeconds = Math.max(1, durationSeconds + extensionCount * 60);
   const percent = Math.max(0, Math.min(100, (remaining / totalSeconds) * 100));
   const countdown = isEnded ? "Selesai" : formatRemaining(remaining);
 
@@ -83,7 +90,8 @@ export function BidPanel({
           {idr.format(currentPrice)}
         </p>
         <p className="text-[0.85rem] text-muted">
-          {highestBidder} · {bidCount} bid · {viewerCount} penonton
+          {highestBidder || "Belum ada bid"} · {bidCount} bid · {viewerCount}{" "}
+          penonton
         </p>
 
         <div className="mt-6 flex items-end justify-between gap-4 border-t border-rule-soft pt-4">
@@ -115,24 +123,44 @@ export function BidPanel({
           />
         </div>
 
-        <div className="mt-6 border-t border-rule-soft pt-4">
-          <p className="text-label uppercase text-muted">Identitas penawar</p>
-          <p className="mt-1.5 text-[0.95rem]">
-            Bid sebagai <strong>Kamu (demo)</strong>
-          </p>
-        </div>
+        {!isEnded ? (
+          <div className="mt-6 border-t border-rule-soft pt-4">
+            <p className="text-label uppercase text-muted">Identitas penawar</p>
+            {userDisplayName ? (
+              <p className="mt-1.5 text-[0.95rem]">
+                {isCreator ? (
+                  "Akun ini adalah pembuat lelang dan tidak bisa memasang bid."
+                ) : (
+                  <>
+                    Bid sebagai <strong>{userDisplayName}</strong>
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[0.95rem]">
+                <Link className="text-link" to="/login?next=%2F">
+                  Masuk
+                </Link>{" "}
+                untuk memasang bid.
+              </p>
+            )}
+          </div>
+        ) : null}
 
         {isEnded ? (
           <div className="mt-6 border-t border-rule-soft pt-4">
             <p className="text-label uppercase text-muted">Hasil lelang</p>
             <p className="mt-2 font-serif text-[1.45rem] leading-[1.25]">
-              {highestBidder || "Tidak ada bid"} memenangkan lot ini.
+              {highestBidder
+                ? `${highestBidder} memenangkan lot ini.`
+                : "Tidak ada bid."}
             </p>
             <p className="mt-2 text-[1rem] tabular-nums">
-              Harga akhir {idr.format(currentPrice)}
+              Harga akhir{" "}
+              {finalPrice === null ? "tidak tersedia" : idr.format(finalPrice)}
             </p>
           </div>
-        ) : (
+        ) : canBid ? (
           <form
             className="mt-6 border-t border-rule-soft pt-4"
             noValidate
@@ -146,8 +174,10 @@ export function BidPanel({
                   aria-describedby={
                     error ? "amount-help bid-error" : "amount-help"
                   }
+                  aria-invalid={Boolean(error)}
                   autoComplete="off"
                   className="min-h-11 min-w-0 flex-1 rounded-none border-0 bg-transparent px-2 py-2.5 text-[1rem] tabular-nums focus-visible:outline-none"
+                  disabled={isSubmitting}
                   id="amount-input"
                   inputMode="numeric"
                   name="amount"
@@ -175,6 +205,7 @@ export function BidPanel({
                   {quickAmounts.map((value) => (
                     <Button
                       className="w-full px-1 text-[0.78rem] tabular-nums"
+                      disabled={isSubmitting}
                       key={value}
                       onClick={() => onAmountChange(value)}
                       size="sm"
@@ -187,8 +218,12 @@ export function BidPanel({
                 </div>
               </fieldset>
 
-              <Button className="mt-3 w-full" type="submit">
-                Pasang bid
+              <Button
+                className="mt-3 w-full"
+                disabled={isSubmitting}
+                type="submit"
+              >
+                {isSubmitting ? "Mengirim..." : "Pasang bid"}
               </Button>
 
               <div aria-live="polite">
@@ -204,12 +239,11 @@ export function BidPanel({
               </div>
             </Field>
           </form>
-        )}
+        ) : null}
 
         <p className="mt-4 border-t border-rule-soft pt-3 text-xs text-muted">
-          Mode demo lokal. Bid tidak dikirim ke server. Bid di{" "}
-          {ANTI_SNIPE_SECONDS} detik terakhir memperpanjang sesi 60 detik,
-          maksimal {MAX_EXTENSIONS} kali.
+          Bid di {ANTI_SNIPE_SECONDS} detik terakhir memperpanjang sesi 60
+          detik, maksimal {MAX_EXTENSIONS} kali. Waktu mengikuti server.
         </p>
       </div>
     </div>

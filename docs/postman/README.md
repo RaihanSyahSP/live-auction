@@ -91,7 +91,7 @@ Collection sudah menambahkan header tersebut pada request yang membutuhkannya.
 | Variable | Arti |
 |---|---|
 | `baseUrl` | Alamat API, default `http://localhost:8080` |
-| `appOrigin` | Origin frontend, default `http://localhost:4173` |
+| `appOrigin` | Origin frontend, default `http://localhost:5173` |
 | `adminEmail` | Email admin seed |
 | `adminPassword` | Password admin seed |
 | `bidderEmail` | Email bidder |

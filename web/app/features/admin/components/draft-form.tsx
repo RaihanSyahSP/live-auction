@@ -11,7 +11,7 @@ import {
 } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
-import { numberFormat } from "~/features/auction/demo";
+import { numberFormat } from "~/features/auction/format";
 import { getErrorMessage } from "~/lib/api-client";
 import type { DraftInput } from "../model";
 import { type DraftFormValues, draftResolver, toDraftInput } from "../schema";

@@ -85,6 +85,9 @@ func TestBidRepositoryInsertAndFind(t *testing.T) {
 	if inserted.CreatedAt.IsZero() {
 		t.Error("Insert() returned zero CreatedAt")
 	}
+	if inserted.DisplayName != "Raihan" {
+		t.Errorf("Insert() DisplayName = %q, want Raihan", inserted.DisplayName)
+	}
 
 	found, err := repo.FindByIdempotencyKey(ctx, tx, auctionID, userID, key)
 	if err != nil {
@@ -92,6 +95,9 @@ func TestBidRepositoryInsertAndFind(t *testing.T) {
 	}
 	if found.ID != inserted.ID {
 		t.Errorf("FindByIdempotencyKey() ID = %v, want %v", found.ID, inserted.ID)
+	}
+	if found.DisplayName != "Raihan" {
+		t.Errorf("FindByIdempotencyKey() DisplayName = %q, want Raihan", found.DisplayName)
 	}
 }
 

@@ -166,10 +166,11 @@ func NewBidService(
 
 func toBidResponse(bid domain.Bid) auction_response.BidResponse {
 	return auction_response.BidResponse{
-		ID:        bid.ID,
-		AuctionID: bid.AuctionID,
-		UserID:    bid.UserID,
-		Amount:    bid.Amount,
-		CreatedAt: bid.CreatedAt,
+		ID:          bid.ID,
+		AuctionID:   bid.AuctionID,
+		UserID:      bid.UserID,
+		Amount:      bid.Amount,
+		DisplayName: bid.DisplayName,
+		CreatedAt:   bid.CreatedAt,
 	}
 }

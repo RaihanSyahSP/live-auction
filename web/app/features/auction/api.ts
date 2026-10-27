@@ -1,5 +1,5 @@
 import { apiClient, assertOk } from "~/lib/api-client";
-import type { Auction, Spec } from "./types";
+import type { Auction, AuctionDetail, PlaceBidResponse, Spec } from "./types";
 
 export type CreateAuctionInput = {
   title: string;
@@ -19,6 +19,44 @@ function auctionPath(id: string, action?: string) {
 }
 
 export const auctionApi = {
+  async current(): Promise<AuctionDetail | null> {
+    const response = await apiClient.fetch("/auctions/current");
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    await assertOk(response);
+    return (await response.json()) as AuctionDetail;
+  },
+
+  async detail(id: string): Promise<AuctionDetail> {
+    const response = await apiClient.fetch(
+      `/auctions/${encodeURIComponent(id)}`,
+    );
+    await assertOk(response);
+    return (await response.json()) as AuctionDetail;
+  },
+
+  async placeBid(
+    id: string,
+    amount: number,
+    idempotencyKey: string,
+  ): Promise<PlaceBidResponse> {
+    const response = await apiClient.fetch(
+      `/auctions/${encodeURIComponent(id)}/bids`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          amount,
+          idempotency_key: idempotencyKey,
+        }),
+      },
+    );
+    await assertOk(response);
+    return (await response.json()) as PlaceBidResponse;
+  },
+
   async listAdmin(page = 1, limit = 50): Promise<Auction[]> {
     const response = await apiClient.fetch(
       `/admin/auctions?page=${page}&limit=${limit}`,

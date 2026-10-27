@@ -31,3 +31,26 @@ export interface Auction {
   final_price?: number | null;
   created_at: string;
 }
+
+export interface Bid {
+  id: string;
+  auction_id: string;
+  user_id: string;
+  amount: number;
+  display_name: string;
+  created_at: string;
+}
+
+export interface AuctionDetail {
+  auction: Auction;
+  bids: Bid[];
+  server_time: string;
+}
+
+export interface PlaceBidResponse {
+  auction: Auction;
+  bid: Bid;
+  replay: boolean;
+  extended: boolean;
+  previous_highest_user_id?: string | null;
+}
