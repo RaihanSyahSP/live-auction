@@ -25,7 +25,7 @@ Dokumen di bawah ini masih memuat catatan prototipe lama; gunakan `DEPLOY.md` un
 
 Kerangka ada di `server/`. Struktur mengikuti layer repo referensi `golang-restful`, tetapi memakai `net/http`, `pgx`, dan manual wiring.
 
-Auth backend memakai access token JWT 15 menit dan refresh token opaque 7 hari dengan rotasi. Keduanya disimpan di cookie `httpOnly`. Semua ID memakai `uuid` dengan default `uuidv7()` di PostgreSQL 18. Detail ada di spec backend.
+Auth backend memakai access token JWT 15 menit dan refresh token opaque 7 hari dengan rotasi. Keduanya disimpan di cookie `httpOnly`. Semua ID memakai `uuid` dengan default `uuidv7()`; PostgreSQL 18 memakai native `uuidv7()`, sedangkan versi lama memakai fallback dari migration.
 
 Mulai dari Task 1 di plan. Jangan menambahkan dependency sebelum task membutuhkannya.
 
